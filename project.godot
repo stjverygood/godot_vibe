@@ -1,0 +1,23 @@
+[application]
+config/name="静谧山谷漫游"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.28, 0.52, 0.72, 1)
+
+[input]
+forward={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":87)]}
+back={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":83)]}
+left={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":65)]}
+right={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":68)]}
+slow_walk={"deadzone":0.5,"events":[Object(InputEventKey,"physical_keycode":4194325)]}
+
+
