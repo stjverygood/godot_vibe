@@ -1,0 +1,8 @@
+.godot/
+build/
+templates_unpack2/
+templates_unpack3/
+templates.tpz
+*.uid
+*.slnx
+
