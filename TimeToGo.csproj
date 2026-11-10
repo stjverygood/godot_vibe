@@ -5,6 +5,9 @@
     <GodotProjectDir>./</GodotProjectDir>
     <AssemblyName>TimeToGo</AssemblyName>
     <RootNamespace>TimeToGo</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 </Project>
 
