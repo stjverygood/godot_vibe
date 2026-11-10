@@ -5,3 +5,4 @@ templates_unpack3/
 templates.tpz
 *.uid
 *.slnx
+.vs/
