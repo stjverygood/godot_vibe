@@ -18,7 +18,7 @@ public partial class Main : Node3D
     private MeshInstance3D attackRangeVisual;
     private MeshInstance3D handItem;
     private Label hotbarLabel;
-    private readonly string[] inventory = { "空手", "木剑", "石块", "药水", "火把" };
+    private readonly string[] inventory = { "空手", "木剑", "石块", "药水", "火球" };
     private readonly Color[] itemColors = { new Color("ffe08a"), new Color("d8b06a"), new Color("8b9299"), new Color("4ba5d8"), new Color("e58a3d") };
     private int selectedItem;
     private float attackActionTimer;
@@ -89,7 +89,13 @@ public partial class Main : Node3D
             if (!attackHitDone && attackActionTimer <= 0.22f)
             {
                 attackHitDone = true;
-                if (IsInstanceValid(currentAttackTarget)) { SpawnProjectile(player.GlobalPosition + new Vector3(0, 1.1f, 0), currentAttackTarget, 35f, new Color("ffe08a"), true); attackLabel.Text = "发射！-35"; }
+                if (IsInstanceValid(currentAttackTarget))
+                {
+                    bool fireball = selectedItem == 4;
+                    float damage = fireball ? 50f : 35f;
+                    SpawnProjectile(player.GlobalPosition + new Vector3(0, 1.1f, 0), currentAttackTarget, damage, fireball ? new Color("ff7a32") : new Color("dcecff"), fireball);
+                    attackLabel.Text = fireball ? "火球！-50" : "剑气！-35";
+                }
             }
             if (attackActionTimer <= 0f) currentAttackTarget = null;
         }
@@ -108,6 +114,13 @@ public partial class Main : Node3D
         attackActionTimer = 0.5f;
         attackHitDone = false;
         currentAttackTarget = null;
+        if (selectedItem != 1 && selectedItem != 4)
+        {
+            attackActionTimer = 0.15f;
+            attackFeedback = 0.5f;
+            attackLabel.Text = "当前物品没有攻击效果";
+            return;
+        }
         float closest = 7.0f;
         foreach (EnemyNode enemy in enemies)
         {
