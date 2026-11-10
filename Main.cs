@@ -9,7 +9,17 @@ public partial class Main : Node3D
     private Vector2I lastChunk = new(int.MinValue, int.MinValue);
     private Label status;
 
-    public override void _Ready() { BuildPlayer(); BuildUi(); UpdateChunks(true); }
+    public override void _Ready() { BuildLighting(); BuildPlayer(); BuildUi(); UpdateChunks(true); }
+
+    private void BuildLighting()
+    {
+        var environment = new WorldEnvironment();
+        var settings = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("#6fa4c4"), AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = new Color("#b9d6e8"), AmbientLightEnergy = 0.8f };
+        environment.Environment = settings;
+        AddChild(environment);
+        var sun = new DirectionalLight3D { RotationDegrees = new Vector3(-55, -35, 0), LightColor = new Color("#ffe2ad"), LightEnergy = 1.4f, ShadowEnabled = true };
+        AddChild(sun);
+    }
 
     public override void _PhysicsProcess(double delta)
     {
