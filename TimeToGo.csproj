@@ -2,6 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <GodotProjectDir>./</GodotProjectDir>
+    <AssemblyName>TimeToGo</AssemblyName>
+    <RootNamespace>TimeToGo</RootNamespace>
   </PropertyGroup>
 </Project>
