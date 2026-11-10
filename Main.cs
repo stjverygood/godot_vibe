@@ -14,6 +14,7 @@ public partial class Main : Node3D
     private float attackFeedback;
     private float playerHealth = 100f;
     private float attackCooldown;
+    private float dashTimer;
     private float attackActionTimer;
     private bool attackHitDone;
     private EnemyNode currentAttackTarget;
@@ -42,7 +43,11 @@ public partial class Main : Node3D
     {
         Vector2 input = Input.GetVector("left", "right", "forward", "back");
         Vector3 direction = new(input.X, 0, input.Y);
-        player.Velocity = direction.Normalized() * (Input.IsActionPressed("slow_walk") ? 60f : 6f);
+        bool sprintHeld = Input.IsActionPressed("slow_walk");
+        if (Input.IsActionJustPressed("slow_walk")) dashTimer = 0.25f;
+        float moveSpeed = dashTimer > 0f ? 30f : sprintHeld ? 12f : 6f;
+        if (dashTimer > 0f) dashTimer -= (float)delta;
+        player.Velocity = direction.Normalized() * moveSpeed;
         player.MoveAndSlide();
         if (direction.LengthSquared() > 0.01f) player.Rotation = new Vector3(0, Mathf.Atan2(-direction.X, -direction.Z), 0);
         camera.GlobalPosition = player.GlobalPosition + new Vector3(0, 16, 16);
@@ -61,7 +66,7 @@ public partial class Main : Node3D
             }
             if (attackActionTimer <= 0f) currentAttackTarget = null;
         }
-        else if (Input.IsKeyPressed(Key.F) && attackCooldown <= 0f) StartAttack();
+        else if ((Input.IsKeyPressed(Key.F) || Input.IsKeyPressed(Key.Space)) && attackCooldown <= 0f) StartAttack();
         Vector2I current = new(Mathf.FloorToInt(player.Position.X / ChunkSize), Mathf.FloorToInt(player.Position.Z / ChunkSize));
         if (current != lastChunk) UpdateChunks(false);
         status.Text = $"无限世界 3D\n生命 {playerHealth:0}\n区块 {current.X}, {current.Y}";
@@ -75,7 +80,7 @@ public partial class Main : Node3D
         attackActionTimer = 0.5f;
         attackHitDone = false;
         currentAttackTarget = null;
-        float closest = 4.2f;
+        float closest = 7.0f;
         foreach (EnemyNode enemy in enemies)
         {
             if (!IsInstanceValid(enemy)) continue;
