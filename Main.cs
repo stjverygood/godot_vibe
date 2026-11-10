@@ -15,6 +15,7 @@ public partial class Main : Node3D
     private float playerHealth = 100f;
     private float attackCooldown;
     private float dashTimer;
+    private MeshInstance3D attackRangeVisual;
     private float attackActionTimer;
     private bool attackHitDone;
     private EnemyNode currentAttackTarget;
@@ -44,7 +45,7 @@ public partial class Main : Node3D
         Vector2 input = Input.GetVector("left", "right", "forward", "back");
         Vector3 direction = new(input.X, 0, input.Y);
         bool sprintHeld = Input.IsActionPressed("slow_walk");
-        if (Input.IsActionJustPressed("slow_walk")) dashTimer = 0.25f;
+        if (Input.IsActionJustPressed("slow_walk")) dashTimer = 0.12f;
         float moveSpeed = dashTimer > 0f ? 30f : sprintHeld ? 12f : 6f;
         if (dashTimer > 0f) dashTimer -= (float)delta;
         player.Velocity = direction.Normalized() * moveSpeed;
@@ -62,7 +63,7 @@ public partial class Main : Node3D
             if (!attackHitDone && attackActionTimer <= 0.22f)
             {
                 attackHitDone = true;
-                if (IsInstanceValid(currentAttackTarget)) { SpawnProjectile(player.GlobalPosition + new Vector3(0, 1.1f, 0), currentAttackTarget, 35f, new Color("ffe08a")); attackLabel.Text = "发射！-35"; }
+                if (IsInstanceValid(currentAttackTarget)) { SpawnProjectile(player.GlobalPosition + new Vector3(0, 1.1f, 0), currentAttackTarget, 35f, new Color("ffe08a"), true); attackLabel.Text = "发射！-35"; }
             }
             if (attackActionTimer <= 0f) currentAttackTarget = null;
         }
@@ -72,6 +73,7 @@ public partial class Main : Node3D
         status.Text = $"无限世界 3D\n生命 {playerHealth:0}\n区块 {current.X}, {current.Y}";
         healthBar.Value = playerHealth;
         attackLabel.Visible = attackFeedback > 0f;
+        attackRangeVisual.Visible = attackFeedback > 0f;
     }
 
     private void StartAttack()
@@ -88,7 +90,7 @@ public partial class Main : Node3D
             if (distance < closest) { closest = distance; currentAttackTarget = enemy; }
         }
         if (IsInstanceValid(currentAttackTarget)) FaceTarget(currentAttackTarget);
-        attackFeedback = 0.25f;
+        attackFeedback = 0.5f;
         attackLabel.Text = currentAttackTarget == null ? "攻击落空" : "蓄力攻击";
     }
 
@@ -99,9 +101,9 @@ public partial class Main : Node3D
         if (toTarget.LengthSquared() > 0.01f) player.Rotation = new Vector3(0, Mathf.Atan2(-toTarget.X, -toTarget.Z), 0);
     }
 
-    private void SpawnProjectile(Vector3 start, Node3D target, float damage, Color color)
+    private void SpawnProjectile(Vector3 start, Node3D target, float damage, Color color, bool homing)
     {
-        var projectile = new ProjectileNode(this, target, damage, color) { GlobalPosition = start };
+        var projectile = new ProjectileNode(this, target, damage, color, homing) { GlobalPosition = start };
         AddChild(projectile);
     }
 
@@ -138,6 +140,8 @@ public partial class Main : Node3D
         player.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.45f, Height = 1.8f }, MaterialOverride = Mat(new Color("e98b62")), Position = new Vector3(0, 0.9f, 0) });
         player.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.34f, Height = 0.68f }, MaterialOverride = Mat(new Color("f6c48f")), Position = new Vector3(0, 2f, 0) });
         player.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.28f, 0.3f, 0.7f) }, MaterialOverride = Mat(new Color("ffe08a")), Position = new Vector3(0, 1.15f, -0.55f) });
+        attackRangeVisual = new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = 6.7f, OuterRadius = 7.0f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(1f, 0.82f, 0.25f, 0.75f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded }, Visible = false, Position = new Vector3(0, 0.08f, 0) };
+        player.AddChild(attackRangeVisual);
         camera = new Camera3D { Position = new Vector3(0, 16, 16), TopLevel = true, Current = true, Fov = 58 };
         player.AddChild(camera);
         camera.GlobalPosition = player.GlobalPosition + new Vector3(0, 16, 16);
@@ -254,7 +258,7 @@ public partial class Main : Node3D
             float distance = offset.Length(); attackTimer -= (float)delta;
             if (distance < 14f && distance > 1.7f) { Velocity = offset.Normalized() * 2.2f; MoveAndSlide(); Position = new Vector3(Position.X, owner.GetTerrainHeight(GlobalPosition.X, GlobalPosition.Z) + 0.7f, Position.Z); }
             else Velocity = Vector3.Zero;
-            if (distance < 10f && attackTimer <= 0f) { owner.SpawnProjectile(GlobalPosition + new Vector3(0, 0.8f, 0), owner.player, 8f, new Color("ff5d68")); attackTimer = 1.0f; }
+            if (distance < 10f && attackTimer <= 0f) { owner.SpawnProjectile(GlobalPosition + new Vector3(0, 0.8f, 0), owner.player, 8f, new Color("ff5d68"), false); attackTimer = 1.0f; }
         }
         public void TakeDamage(float damage)
         {
@@ -271,12 +275,14 @@ public partial class Main : Node3D
         private readonly Main owner;
         private readonly Node3D target;
         private readonly float damage;
+        private readonly bool homing;
+        private Vector3 travelDirection;
         private float lifetime = 3f;
         private readonly float speed = 14f;
 
-        public ProjectileNode(Main owner, Node3D target, float damage, Color color)
+        public ProjectileNode(Main owner, Node3D target, float damage, Color color, bool homing)
         {
-            this.owner = owner; this.target = target; this.damage = damage;
+            this.owner = owner; this.target = target; this.damage = damage; this.homing = homing;
             AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.18f, Height = 0.36f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = color, EmissionEnabled = true, Emission = color, EmissionEnergyMultiplier = 2f } });
         }
 
@@ -285,6 +291,7 @@ public partial class Main : Node3D
             lifetime -= (float)delta;
             if (lifetime <= 0f || !IsInstanceValid(target)) { QueueFree(); return; }
             Vector3 offset = target.GlobalPosition + new Vector3(0, 0.8f, 0) - GlobalPosition;
+            if (!homing && travelDirection == Vector3.Zero) travelDirection = offset.Normalized();
             float distance = offset.Length();
             if (distance < 0.75f)
             {
@@ -292,7 +299,7 @@ public partial class Main : Node3D
                 else if (target is EnemyNode enemy) enemy.TakeDamage(damage);
                 QueueFree(); return;
             }
-            GlobalPosition += offset.Normalized() * speed * (float)delta;
+            GlobalPosition += (homing ? offset.Normalized() : travelDirection) * speed * (float)delta;
         }
     }
 }
