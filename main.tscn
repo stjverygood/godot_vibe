@@ -2,7 +2,6 @@
 
 [ext_resource path="res://Main.cs" type="Script" id="1"]
 
-[node name="ValleyWalk" type="Node3D"]
+[node name="InfiniteWorld2D" type="Node2D"]
 script = ExtResource("1")
-
 
