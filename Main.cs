@@ -19,15 +19,29 @@ public partial class Main : Node3D
     private float attackActionTimer;
     private bool attackHitDone;
     private EnemyNode currentAttackTarget;
+    private Control startOverlay;
+    private Control pauseOverlay;
+    private bool gameStarted;
     private readonly List<EnemyNode> enemies = new();
     private readonly FastNoiseLite terrainNoise = new() { Seed = Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
     private readonly FastNoiseLite terrainDetail = new() { Seed = Seed + 91, Frequency = 0.12f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
 
     public override void _Ready()
     {
+        ProcessMode = ProcessModeEnum.Always;
         BuildLighting(); BuildPlayer(); BuildUi(); UpdateChunks(true);
         Vector2I screen = DisplayServer.ScreenGetSize();
         DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - 560)));
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.Escape && gameStarted)
+        {
+            GetTree().Paused = !GetTree().Paused;
+            pauseOverlay.Visible = GetTree().Paused;
+        }
+        if (@event is InputEventKey enter && enter.Pressed && enter.Keycode == Key.Enter && !gameStarted) StartGame();
     }
 
     private void BuildLighting()
@@ -42,6 +56,7 @@ public partial class Main : Node3D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (!gameStarted) return;
         Vector2 input = Input.GetVector("left", "right", "forward", "back");
         Vector3 direction = new(input.X, 0, input.Y);
         bool sprintHeld = Input.IsActionPressed("slow_walk");
@@ -156,7 +171,28 @@ public partial class Main : Node3D
         healthBar = new ProgressBar { Position = new Vector2(15, 76), Size = new Vector2(270, 18), MinValue = 0, MaxValue = 100, Value = 100, ShowPercentage = true }; panel.AddChild(healthBar);
         attackLabel = new Label { Position = new Vector2(380, 24), Text = "攻击！", Visible = false }; attackLabel.AddThemeFontSizeOverride("font_size", 24); attackLabel.AddThemeColorOverride("font_color", new Color("ffcf75")); layer.AddChild(attackLabel);
         var help = new Label { Position = new Vector2(20, 660), Text = "WASD 移动   Shift 慢走   窗口化俯视角" }; help.AddThemeFontSizeOverride("font_size", 16); help.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(help);
+        startOverlay = MakeOverlay(layer, "TimeToGo", "无限世界 · 3D 漫游", "开始游戏  (Enter)");
+        pauseOverlay = MakeOverlay(layer, "游戏暂停", "探索暂时停下来了", "继续游戏  (Esc)");
+        pauseOverlay.Visible = false;
+        startOverlay.GetNode<Button>("ActionButton").Pressed += StartGame;
+        pauseOverlay.GetNode<Button>("ActionButton").Pressed += TogglePause;
     }
+
+    private Control MakeOverlay(CanvasLayer layer, string titleText, string subtitleText, string buttonText)
+    {
+        var panel = new ColorRect { Name = "Overlay", Position = Vector2.Zero, Size = new Vector2(960, 540), Color = new Color(0.02f, 0.03f, 0.05f, 0.92f), ProcessMode = ProcessModeEnum.Always };
+        layer.AddChild(panel);
+        var title = new Label { Text = titleText, Position = new Vector2(320, 170), Size = new Vector2(320, 60), HorizontalAlignment = HorizontalAlignment.Center };
+        title.AddThemeFontSizeOverride("font_size", 38); title.AddThemeColorOverride("font_color", new Color("f5e6c8")); panel.AddChild(title);
+        var subtitle = new Label { Text = subtitleText, Position = new Vector2(280, 240), Size = new Vector2(400, 40), HorizontalAlignment = HorizontalAlignment.Center };
+        subtitle.AddThemeFontSizeOverride("font_size", 20); subtitle.AddThemeColorOverride("font_color", new Color("b9d6e8")); panel.AddChild(subtitle);
+        var button = new Button { Name = "ActionButton", Text = buttonText, Position = new Vector2(360, 315), Size = new Vector2(240, 55) };
+        button.AddThemeFontSizeOverride("font_size", 20); panel.AddChild(button);
+        return panel;
+    }
+
+    private void StartGame() { gameStarted = true; startOverlay.Visible = false; }
+    private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; }
 
     private StandardMaterial3D Mat(Color color) => new() { AlbedoColor = color, Roughness = 0.9f };
 
