@@ -16,6 +16,11 @@ public partial class Main : Node3D
     private float attackCooldown;
     private float dashTimer;
     private MeshInstance3D attackRangeVisual;
+    private MeshInstance3D handItem;
+    private Label hotbarLabel;
+    private readonly string[] inventory = { "空手", "木剑", "石块", "药水", "火把" };
+    private readonly Color[] itemColors = { new Color("ffe08a"), new Color("d8b06a"), new Color("8b9299"), new Color("4ba5d8"), new Color("e58a3d") };
+    private int selectedItem;
     private float attackActionTimer;
     private bool attackHitDone;
     private EnemyNode currentAttackTarget;
@@ -43,6 +48,11 @@ public partial class Main : Node3D
             pauseOverlay.Visible = GetTree().Paused;
         }
         if (@event is InputEventKey enter && enter.Pressed && enter.Keycode == Key.Enter && !gameStarted) StartGame();
+        if (@event is InputEventKey itemKey && itemKey.Pressed && gameStarted && !GetTree().Paused)
+        {
+            if (itemKey.Keycode == Key.Q) SelectItem(selectedItem - 1);
+            if (itemKey.Keycode == Key.E) SelectItem(selectedItem + 1);
+        }
     }
 
     private void BuildLighting()
@@ -156,6 +166,8 @@ public partial class Main : Node3D
         player.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.45f, Height = 1.8f }, MaterialOverride = Mat(new Color("e98b62")), Position = new Vector3(0, 0.9f, 0) });
         player.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.34f, Height = 0.68f }, MaterialOverride = Mat(new Color("f6c48f")), Position = new Vector3(0, 2f, 0) });
         player.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.28f, 0.3f, 0.7f) }, MaterialOverride = Mat(new Color("ffe08a")), Position = new Vector3(0, 1.15f, -0.55f) });
+        handItem = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.22f, 0.22f, 0.65f) }, MaterialOverride = Mat(itemColors[0]), Position = new Vector3(0.65f, 1.15f, -0.45f) };
+        player.AddChild(handItem);
         attackRangeVisual = new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = 6.7f, OuterRadius = 7.0f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(1f, 0.82f, 0.25f, 0.75f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded }, Visible = false, Position = new Vector3(0, 0.08f, 0) };
         player.AddChild(attackRangeVisual);
         camera = new Camera3D { Position = new Vector3(0, 16, 16), TopLevel = true, Current = true, Fov = 58 };
@@ -172,6 +184,9 @@ public partial class Main : Node3D
         healthBar = new ProgressBar { Position = new Vector2(15, 76), Size = new Vector2(270, 18), MinValue = 0, MaxValue = 100, Value = 100, ShowPercentage = true }; panel.AddChild(healthBar);
         attackLabel = new Label { Position = new Vector2(380, 24), Text = "攻击！", Visible = false }; attackLabel.AddThemeFontSizeOverride("font_size", 24); attackLabel.AddThemeColorOverride("font_color", new Color("ffcf75")); layer.AddChild(attackLabel);
         var help = new Label { Position = new Vector2(20, 660), Text = "WASD 移动   Shift 慢走   窗口化俯视角" }; help.AddThemeFontSizeOverride("font_size", 16); help.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(help);
+        hotbarLabel = new Label { Position = new Vector2(350, 485), Size = new Vector2(260, 35), HorizontalAlignment = HorizontalAlignment.Center };
+        hotbarLabel.AddThemeFontSizeOverride("font_size", 18); hotbarLabel.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(hotbarLabel);
+        RefreshHotbar();
         startOverlay = MakeOverlay(layer, "TimeToGo", "无限世界 · 3D 漫游", "开始游戏  (Enter)");
         pauseOverlay = MakeOverlay(layer, "游戏暂停", "探索暂时停下来了", "继续游戏  (Esc)");
         pauseOverlay.Visible = false;
@@ -204,6 +219,21 @@ public partial class Main : Node3D
     private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; }
     private void ShowHelp() { helpOverlay.Visible = true; }
     private void QuitGame() { GetTree().Quit(); }
+
+    private void SelectItem(int index)
+    {
+        selectedItem = (index % inventory.Length + inventory.Length) % inventory.Length;
+        handItem.MaterialOverride = Mat(itemColors[selectedItem]);
+        RefreshHotbar();
+    }
+
+    private void RefreshHotbar()
+    {
+        if (hotbarLabel == null) return;
+        string text = "快捷栏  ";
+        for (int i = 0; i < inventory.Length; i++) text += i == selectedItem ? $"[ {inventory[i]} ]  " : $"{inventory[i]}  ";
+        hotbarLabel.Text = text;
+    }
 
     private Control MakeHelpOverlay(CanvasLayer layer)
     {
