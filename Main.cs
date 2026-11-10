@@ -1,137 +1,90 @@
 using Godot;
-using System;
+using System.Collections.Generic;
 
-public partial class Main : Node3D
+public partial class Main : Node2D
 {
-    private CharacterBody3D player;
-    private Node3D cameraPivot;
-    private Camera3D camera;
-    private float yaw;
-    private float pitch = -0.22f;
-    private bool mouseCaptured = true;
+    private const int ChunkSize = 32, TileSize = 32, LoadRadius = 3, WorldSeed = 24681357;
+    private CharacterBody2D player;
+    private readonly Dictionary<Vector2I, ChunkNode> chunks = new();
+    private Vector2I lastChunk = new(int.MinValue, int.MinValue);
+    private Label locationLabel;
 
-    public override void _Ready()
-    {
-        BuildEnvironment();
-        BuildPlayer();
-        BuildUi();
-        Input.MouseMode = Input.MouseModeEnum.Captured;
-    }
-
-    public override void _UnhandledInput(InputEvent @event)
-    {
-        if (@event is InputEventMouseMotion motion && mouseCaptured)
-        {
-            yaw -= motion.Relative.X * 0.003f;
-            pitch = Mathf.Clamp(pitch - motion.Relative.Y * 0.002f, -0.8f, 0.25f);
-        }
-        if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.Escape)
-        {
-            mouseCaptured = !mouseCaptured;
-            Input.MouseMode = mouseCaptured ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible;
-        }
-    }
+    public override void _Ready() { BuildPlayer(); BuildUi(); UpdateChunks(true); }
 
     public override void _PhysicsProcess(double delta)
     {
-        if (player == null) return;
-        float dt = (float)delta;
         Vector2 input = Input.GetVector("left", "right", "forward", "back");
-        Vector3 direction = new Basis(Vector3.Up, yaw) * new Vector3(input.X, 0, -input.Y);
-        direction = direction.Normalized();
-        float currentSpeed = Input.IsActionPressed("slow_walk") ? 2.5f : 4.5f;
-        Vector3 velocity = player.Velocity;
-        velocity.X = Mathf.MoveToward(velocity.X, direction.X * currentSpeed, 18f * dt);
-        velocity.Z = Mathf.MoveToward(velocity.Z, direction.Z * currentSpeed, 18f * dt);
-        velocity.Y = player.IsOnFloor() ? 0f : velocity.Y - 18f * dt;
-        player.Velocity = velocity;
+        player.Velocity = input.Normalized() * (Input.IsActionPressed("slow_walk") ? 110f : 220f);
         player.MoveAndSlide();
-        player.Rotation = new Vector3(0, Mathf.LerpAngle(player.Rotation.Y, yaw, 10f * dt), 0);
-        cameraPivot.Rotation = new Vector3(pitch, yaw, 0);
+        Vector2I current = WorldToChunk(player.Position);
+        if (current != lastChunk) UpdateChunks(false);
+        locationLabel.Text = $"无限漫游\n区块 {current.X}, {current.Y}\n坐标 {player.Position.X:0}, {player.Position.Y:0}";
     }
 
-    private StandardMaterial3D Mat(Color color, float roughness = 0.9f, float metallic = 0f)
+    private Vector2I WorldToChunk(Vector2 position)
     {
-        return new StandardMaterial3D { AlbedoColor = color, Roughness = roughness, Metallic = metallic };
+        float size = ChunkSize * TileSize;
+        return new Vector2I(Mathf.FloorToInt(position.X / size), Mathf.FloorToInt(position.Y / size));
     }
 
-    private MeshInstance3D MeshNode(Mesh mesh, Material material, Vector3 position, Node parent = null)
+    private void UpdateChunks(bool force)
     {
-        var node = new MeshInstance3D { Mesh = mesh, MaterialOverride = material, Position = position };
-        (parent ?? this).AddChild(node);
-        return node;
-    }
-
-    private void BuildEnvironment()
-    {
-        var world = new WorldEnvironment();
-        var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky, AmbientLightSource = Godot.Environment.AmbientSource.Sky, AmbientLightEnergy = 0.8f, TonemapMode = Godot.Environment.ToneMapper.Filmic };
-        var sky = new Sky();
-        sky.SkyMaterial = new ProceduralSkyMaterial { SkyTopColor = new Color("183e63"), SkyHorizonColor = new Color("f2c58a"), GroundBottomColor = new Color("122b2a"), GroundHorizonColor = new Color("9bc4b0") };
-        environment.Sky = sky;
-        world.Environment = environment;
-        AddChild(world);
-        var sun = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -28, 0), LightColor = new Color("ffe0a8"), LightEnergy = 1.4f, ShadowEnabled = true };
-        AddChild(sun);
-        var ground = new BoxMesh { Size = new Vector3(70, 0.5f, 70) };
-        MeshNode(ground, Mat(new Color("476b4c")), new Vector3(0, -0.25f, 0));
-        var groundBody = new StaticBody3D { Position = new Vector3(0, -0.25f, 0) };
-        groundBody.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(70, 0.5f, 70) } });
-        AddChild(groundBody);
-        var water = new BoxMesh { Size = new Vector3(24, 0.16f, 18) };
-        MeshNode(water, Mat(new Color(0.12f, 0.34f, 0.42f, 0.8f), 0.12f, 0.2f), new Vector3(8, 0.05f, -7));
-        foreach (Vector3 p in new Vector3[] { new Vector3(-16, 0, -14), new Vector3(14, 0, -18), new Vector3(24, 0, 5), new Vector3(-24, 0, 14), new Vector3(0, 0, 23) }) BuildHill(p);
-        foreach (Vector3 p in new Vector3[] { new Vector3(-10, 0, -3), new Vector3(-15, 0, 6), new Vector3(-5, 0, 13), new Vector3(17, 0, -2), new Vector3(21, 0, 13), new Vector3(7, 0, 17), new Vector3(-21, 0, -5) }) BuildTree(p);
-        foreach (Vector3 p in new Vector3[] { new Vector3(-3, 0, -10), new Vector3(2, 0, 4), new Vector3(12, 0, 8), new Vector3(-17, 0, 18), new Vector3(25, 0, -11) }) BuildRock(p);
-        MeshNode(new BoxMesh { Size = new Vector3(3.8f, 0.04f, 42) }, Mat(new Color("b28b63")), new Vector3(-1.8f, 0.02f, 4));
-    }
-
-    private void BuildHill(Vector3 p)
-    {
-        var node = MeshNode(new SphereMesh { Radius = 7, Height = 10 }, Mat(new Color("355b46")), p + new Vector3(0, 1.8f, 0));
-        node.Scale = new Vector3(1.7f, 0.75f, 1.2f);
-    }
-
-    private void BuildTree(Vector3 p)
-    {
-        MeshNode(new CylinderMesh { TopRadius = 0.22f, BottomRadius = 0.35f, Height = 3.5f }, Mat(new Color("5c3e2b")), p + new Vector3(0, 1.75f, 0));
-        MeshNode(new CylinderMesh { TopRadius = 0f, BottomRadius = 1.55f, Height = 3.8f }, Mat(new Color("234b3d")), p + new Vector3(0, 4.8f, 0));
-        MeshNode(new CylinderMesh { TopRadius = 0f, BottomRadius = 1.15f, Height = 2.8f }, Mat(new Color("2f6a4a")), p + new Vector3(0, 6.1f, 0));
-    }
-
-    private void BuildRock(Vector3 p)
-    {
-        var node = MeshNode(new SphereMesh { Radius = 1.1f, Height = 1.5f }, Mat(new Color("667275")), p + new Vector3(0, 0.65f, 0));
-        node.Scale = new Vector3(1.4f, 0.8f, 0.9f);
+        Vector2I center = WorldToChunk(player.Position);
+        if (!force && center == lastChunk) return;
+        lastChunk = center;
+        var wanted = new HashSet<Vector2I>();
+        for (int y = -LoadRadius; y <= LoadRadius; y++)
+        for (int x = -LoadRadius; x <= LoadRadius; x++)
+        {
+            Vector2I coord = center + new Vector2I(x, y); wanted.Add(coord);
+            if (!chunks.ContainsKey(coord)) { var chunk = new ChunkNode(coord, WorldSeed); chunks[coord] = chunk; AddChild(chunk); }
+        }
+        var remove = new List<Vector2I>();
+        foreach (var pair in chunks) if (!wanted.Contains(pair.Key)) remove.Add(pair.Key);
+        foreach (Vector2I coord in remove) { chunks[coord].QueueFree(); chunks.Remove(coord); }
     }
 
     private void BuildPlayer()
     {
-        player = new CharacterBody3D { Name = "Explorer", Position = new Vector3(0, 1.2f, 10) };
-        AddChild(player);
-        var capsule = new CapsuleShape3D { Radius = 0.45f, Height = 1.8f };
-        player.AddChild(new CollisionShape3D { Shape = capsule, Position = new Vector3(0, 0.9f, 0) });
-        player.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.45f, Height = 1.8f }, MaterialOverride = Mat(new Color("d8845b")), Position = new Vector3(0, 0.9f, 0) });
-        player.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.33f, Height = 0.66f }, MaterialOverride = Mat(new Color("f0bd8b")), Position = new Vector3(0, 2.05f, 0) });
-        cameraPivot = new Node3D { Position = new Vector3(0, 1.9f, 0) };
-        player.AddChild(cameraPivot);
-        camera = new Camera3D { Position = new Vector3(0, 1.2f, 6.5f), Current = true, Fov = 68f };
-        cameraPivot.AddChild(camera);
+        player = new CharacterBody2D { Position = Vector2.Zero, ZIndex = 10 }; AddChild(player);
+        player.AddChild(new CollisionShape2D { Shape = new CircleShape2D { Radius = 12f } });
+        player.AddChild(new PlayerVisual());
+        player.AddChild(new Camera2D { Enabled = true, Zoom = new Vector2(1.2f, 1.2f) });
     }
 
     private void BuildUi()
     {
-        var layer = new CanvasLayer();
-        AddChild(layer);
-        var panel = new ColorRect { Position = new Vector2(24, 24), Size = new Vector2(340, 92), Color = new Color(0.02f, 0.05f, 0.07f, 0.72f) };
-        layer.AddChild(panel);
-        var label = new Label { Position = new Vector2(18, 12), Text = "静谧山谷 · 漫游模式\nWASD 移动   Shift 慢走   鼠标环顾\nEsc 释放/捕获鼠标" };
-        label.AddThemeFontSizeOverride("font_size", 18);
-        label.AddThemeColorOverride("font_color", new Color("f6e4bd"));
-        panel.AddChild(label);
-        var title = new Label { Text = "WANDER", Position = new Vector2(26, 650) };
-        title.AddThemeFontSizeOverride("font_size", 28);
-        title.AddThemeColorOverride("font_color", new Color(1, 0.87f, 0.62f, 0.9f));
-        layer.AddChild(title);
+        var layer = new CanvasLayer(); AddChild(layer);
+        var panel = new ColorRect { Position = new Vector2(20, 20), Size = new Vector2(300, 122), Color = new Color(0.03f, 0.05f, 0.08f, 0.8f) }; layer.AddChild(panel);
+        locationLabel = new Label { Position = new Vector2(16, 12), Text = "无限漫游" };
+        locationLabel.AddThemeFontSizeOverride("font_size", 18); locationLabel.AddThemeColorOverride("font_color", new Color("f5e6c8")); panel.AddChild(locationLabel);
+        var help = new Label { Position = new Vector2(20, 660), Text = "WASD 移动   Shift 慢走   Esc 释放鼠标" };
+        help.AddThemeFontSizeOverride("font_size", 16); help.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(help);
+    }
+
+    private partial class PlayerVisual : Node2D
+    {
+        public override void _Draw() { DrawCircle(Vector2.Zero, 13, new Color("e98b62")); DrawCircle(new Vector2(0, -3), 8, new Color("f6c48f")); DrawLine(new Vector2(0, -12), new Vector2(0, -20), new Color("f6e2b8"), 3); }
+    }
+
+    private partial class ChunkNode : Node2D
+    {
+        private readonly Vector2I coord;
+        public ChunkNode(Vector2I coord, int seed)
+        {
+            this.coord = coord; Position = new Vector2(coord.X * ChunkSize * TileSize, coord.Y * ChunkSize * TileSize); ZIndex = -5; QueueRedraw();
+        }
+        public override void _Draw()
+        {
+            var noise = new FastNoiseLite { Seed = WorldSeed, Frequency = 0.025f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
+            for (int y = 0; y < ChunkSize; y++) for (int x = 0; x < ChunkSize; x++)
+            {
+                float value = noise.GetNoise2D(coord.X * ChunkSize + x, coord.Y * ChunkSize + y);
+                Color color = value < -0.25f ? new Color("427b82") : value > 0.48f ? new Color("9a865c") : new Color("5f8c58");
+                DrawRect(new Rect2(x * TileSize, y * TileSize, TileSize + 1, TileSize + 1), color);
+                if (value > 0.2f && ((x * 17 + y * 31 + coord.X * 7 + coord.Y * 13) % 47 == 0)) DrawRect(new Rect2(x * TileSize + 10, y * TileSize + 8, 12, 16), new Color("31533b"));
+                if (value < -0.25f && ((x + y * 3) % 19 == 0)) DrawCircle(new Vector2(x * TileSize + 16, y * TileSize + 16), 5, new Color("8bb4b2"));
+            }
+        }
     }
 }
