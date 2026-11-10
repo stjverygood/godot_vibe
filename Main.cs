@@ -21,6 +21,7 @@ public partial class Main : Node3D
     private EnemyNode currentAttackTarget;
     private Control startOverlay;
     private Control pauseOverlay;
+    private Control helpOverlay;
     private bool gameStarted;
     private readonly List<EnemyNode> enemies = new();
     private readonly FastNoiseLite terrainNoise = new() { Seed = Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
@@ -176,6 +177,12 @@ public partial class Main : Node3D
         pauseOverlay.Visible = false;
         startOverlay.GetNode<Button>("ActionButton").Pressed += StartGame;
         pauseOverlay.GetNode<Button>("ActionButton").Pressed += TogglePause;
+        startOverlay.GetNode<Button>("HelpButton").Pressed += ShowHelp;
+        pauseOverlay.GetNode<Button>("HelpButton").Pressed += ShowHelp;
+        startOverlay.GetNode<Button>("QuitButton").Pressed += QuitGame;
+        pauseOverlay.GetNode<Button>("QuitButton").Pressed += QuitGame;
+        helpOverlay = MakeHelpOverlay(layer);
+        helpOverlay.Visible = false;
     }
 
     private Control MakeOverlay(CanvasLayer layer, string titleText, string subtitleText, string buttonText)
@@ -188,11 +195,28 @@ public partial class Main : Node3D
         subtitle.AddThemeFontSizeOverride("font_size", 20); subtitle.AddThemeColorOverride("font_color", new Color("b9d6e8")); panel.AddChild(subtitle);
         var button = new Button { Name = "ActionButton", Text = buttonText, Position = new Vector2(360, 315), Size = new Vector2(240, 55) };
         button.AddThemeFontSizeOverride("font_size", 20); panel.AddChild(button);
+        panel.AddChild(new Button { Name = "HelpButton", Text = "操作说明", Position = new Vector2(360, 385), Size = new Vector2(115, 42) });
+        panel.AddChild(new Button { Name = "QuitButton", Text = "退出游戏", Position = new Vector2(485, 385), Size = new Vector2(115, 42) });
         return panel;
     }
 
     private void StartGame() { gameStarted = true; startOverlay.Visible = false; }
     private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; }
+    private void ShowHelp() { helpOverlay.Visible = true; }
+    private void QuitGame() { GetTree().Quit(); }
+
+    private Control MakeHelpOverlay(CanvasLayer layer)
+    {
+        var panel = new ColorRect { Name = "HelpOverlay", Position = Vector2.Zero, Size = new Vector2(960, 540), Color = new Color(0.02f, 0.03f, 0.05f, 0.96f), ProcessMode = ProcessModeEnum.Always };
+        layer.AddChild(panel);
+        var title = new Label { Text = "操作说明", Position = new Vector2(330, 105), Size = new Vector2(300, 55), HorizontalAlignment = HorizontalAlignment.Center };
+        title.AddThemeFontSizeOverride("font_size", 34); title.AddThemeColorOverride("font_color", new Color("f5e6c8")); panel.AddChild(title);
+        var content = new Label { Text = "WASD       移动\nShift       突进，继续按住可奔跑\nF / 空格    发射攻击弹体\nEsc         暂停或继续游戏\n\n攻击会自动朝向范围内最近的敌人", Position = new Vector2(300, 190), Size = new Vector2(360, 190), HorizontalAlignment = HorizontalAlignment.Center };
+        content.AddThemeFontSizeOverride("font_size", 20); content.AddThemeColorOverride("font_color", new Color("b9d6e8")); panel.AddChild(content);
+        var back = new Button { Text = "返回", Position = new Vector2(390, 410), Size = new Vector2(180, 48) };
+        back.AddThemeFontSizeOverride("font_size", 18); back.Pressed += () => helpOverlay.Visible = false; panel.AddChild(back);
+        return panel;
+    }
 
     private StandardMaterial3D Mat(Color color) => new() { AlbedoColor = color, Roughness = 0.9f };
 
