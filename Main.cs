@@ -8,8 +8,15 @@ public partial class Main : Node3D
     private readonly Dictionary<Vector2I, ChunkNode> chunks = new();
     private Vector2I lastChunk = new(int.MinValue, int.MinValue);
     private Label status;
+    private readonly FastNoiseLite terrainNoise = new() { Seed = Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
+    private readonly FastNoiseLite terrainDetail = new() { Seed = Seed + 91, Frequency = 0.12f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
 
-    public override void _Ready() { BuildLighting(); BuildPlayer(); BuildUi(); UpdateChunks(true); }
+    public override void _Ready()
+    {
+        BuildLighting(); BuildPlayer(); BuildUi(); UpdateChunks(true);
+        Vector2I screen = DisplayServer.ScreenGetSize();
+        DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - 560)));
+    }
 
     private void BuildLighting()
     {
@@ -25,11 +32,19 @@ public partial class Main : Node3D
     {
         Vector2 input = Input.GetVector("left", "right", "forward", "back");
         Vector3 direction = new(input.X, 0, input.Y);
-        player.Velocity = direction.Normalized() * (Input.IsActionPressed("slow_walk") ? 3f : 6f);
+        player.Velocity = direction.Normalized() * (Input.IsActionPressed("slow_walk") ? 60f : 6f);
         player.MoveAndSlide();
+        player.Position = new Vector3(player.Position.X, GetTerrainHeight(player.Position.X, player.Position.Z) + 1.0f, player.Position.Z);
         Vector2I current = new(Mathf.FloorToInt(player.Position.X / ChunkSize), Mathf.FloorToInt(player.Position.Z / ChunkSize));
         if (current != lastChunk) UpdateChunks(false);
         status.Text = $"无限世界 3D\n区块 {current.X}, {current.Y}\n位置 {player.Position.X:0}, {player.Position.Z:0}";
+    }
+
+    private float GetTerrainHeight(float x, float z)
+    {
+        float broad = terrainNoise.GetNoise2D(x, z);
+        float fine = terrainDetail.GetNoise2D(x, z);
+        return Mathf.Clamp((broad + 0.2f) * 5.5f + fine * 0.6f, -1.2f, 7.5f);
     }
 
     private void UpdateChunks(bool force)
@@ -76,31 +91,57 @@ public partial class Main : Node3D
             this.coord = coord; Position = new Vector3(coord.X * ChunkSize, 0, coord.Y * ChunkSize);
             var noise = new FastNoiseLite { Seed = Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
             var detail = new FastNoiseLite { Seed = Seed + 91, Frequency = 0.12f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
-            var ground = new StaticBody3D();
-            ground.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(ChunkSize, 0.4f, ChunkSize) }, Position = new Vector3(ChunkSize / 2f, -0.2f, ChunkSize / 2f) }); AddChild(ground);
-            AddCube(new Vector3(ChunkSize / 2f, -0.2f, ChunkSize / 2f), new Vector3(ChunkSize, 0.4f, ChunkSize), new Color("5e8b59"));
-            for (int z = 1; z < ChunkSize - 1; z += 3) for (int x = 1; x < ChunkSize - 1; x += 3)
-            {
-                int worldX = coord.X * ChunkSize + x;
-                int worldZ = coord.Y * ChunkSize + z;
-                float value = noise.GetNoise2D(worldX, worldZ);
-                float detailValue = detail.GetNoise2D(worldX, worldZ);
-                float height = Mathf.Clamp((value + 0.35f) * 4.5f + detailValue * 1.2f, 0f, 5.5f);
-                int variant = Mathf.Abs((x * 17 + z * 31 + coord.X * 7 + coord.Y * 13) % 11);
-                if (value < -0.32f) AddCube(new Vector3(x, 0.15f, z), new Vector3(3, 0.3f, 3), new Color("3f7478"));
-                else if (height > 1.0f)
-                {
-                    Color terrainColor = height > 4.0f ? new Color("8b7650") : height > 2.4f ? new Color("6b8f55") : new Color("5e8b59");
-                    AddCube(new Vector3(x, 0.2f + height / 2f, z), new Vector3(3, height, 3), terrainColor);
-                }
-                if (variant == 0 && value > -0.05f) AddCube(new Vector3(x, height + 1.0f, z), new Vector3(1.8f, 2.0f, 1.8f), new Color("31533b"));
-                else if (variant == 1 && height > 0.8f) AddCube(new Vector3(x, height + 0.55f, z), new Vector3(1.3f, 1.1f, 1.3f), new Color("7b7772"));
-            }
+            BuildTerrain(noise, detail);
+            AddWaterSurface();
         }
 
-        private void AddCube(Vector3 position, Vector3 size, Color color)
+        private void AddWaterSurface()
         {
-            AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = new StandardMaterial3D { AlbedoColor = color, Roughness = 0.9f }, Position = position });
+            var waterMaterial = new StandardMaterial3D { AlbedoColor = new Color(0.08f, 0.35f, 0.52f, 0.72f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, Roughness = 0.15f, Metallic = 0.1f };
+            AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(ChunkSize, 0.08f, ChunkSize) }, MaterialOverride = waterMaterial, Position = new Vector3(ChunkSize / 2f, 0, ChunkSize / 2f) });
         }
+
+        private void BuildTerrain(FastNoiseLite noise, FastNoiseLite detail)
+        {
+            var tool = new SurfaceTool();
+            tool.Begin(Mesh.PrimitiveType.Triangles);
+            for (int z = 0; z < ChunkSize; z++) for (int x = 0; x < ChunkSize; x++)
+            {
+                AddTriangle(tool, noise, detail, x, z, x + 1, z, x, z + 1);
+                AddTriangle(tool, noise, detail, x + 1, z, x + 1, z + 1, x, z + 1);
+            }
+            var mesh = tool.Commit();
+            var material = new StandardMaterial3D { AlbedoColor = new Color("5e8b59"), Roughness = 0.95f };
+            AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = material });
+            var terrainBody = new StaticBody3D();
+            terrainBody.AddChild(new CollisionShape3D { Shape = new ConcavePolygonShape3D { Data = mesh.GetFaces() } });
+            AddChild(terrainBody);
+        }
+
+        private void AddTriangle(SurfaceTool tool, FastNoiseLite noise, FastNoiseLite detail, int ax, int az, int bx, int bz, int cx, int cz)
+        {
+            tool.SetColor(TerrainColor(GetHeight(noise, detail, ax, az)));
+            tool.AddVertex(new Vector3(ax, GetHeight(noise, detail, ax, az), az));
+            tool.AddVertex(new Vector3(bx, GetHeight(noise, detail, bx, bz), bz));
+            tool.AddVertex(new Vector3(cx, GetHeight(noise, detail, cx, cz), cz));
+        }
+
+        private float GetHeight(FastNoiseLite noise, FastNoiseLite detail, int x, int z)
+        {
+            int worldX = coord.X * ChunkSize + x;
+            int worldZ = coord.Y * ChunkSize + z;
+            float broad = noise.GetNoise2D(worldX, worldZ);
+            float fine = detail.GetNoise2D(worldX, worldZ);
+            return Mathf.Clamp((broad + 0.2f) * 5.5f + fine * 0.6f, -1.2f, 7.5f);
+        }
+
+        private Color TerrainColor(float height)
+        {
+            if (height < -0.35f) return new Color("3f7478");
+            if (height > 5.5f) return new Color("8b7650");
+            if (height > 3.0f) return new Color("6b8f55");
+            return new Color("5e8b59");
+        }
+
     }
 }
