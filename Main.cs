@@ -74,17 +74,27 @@ public partial class Main : Node3D
         public ChunkNode(Vector2I coord)
         {
             this.coord = coord; Position = new Vector3(coord.X * ChunkSize, 0, coord.Y * ChunkSize);
-            var noise = new FastNoiseLite { Seed = Seed, Frequency = 0.06f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
+            var noise = new FastNoiseLite { Seed = Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
+            var detail = new FastNoiseLite { Seed = Seed + 91, Frequency = 0.12f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
             var ground = new StaticBody3D();
             ground.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(ChunkSize, 0.4f, ChunkSize) }, Position = new Vector3(ChunkSize / 2f, -0.2f, ChunkSize / 2f) }); AddChild(ground);
             AddCube(new Vector3(ChunkSize / 2f, -0.2f, ChunkSize / 2f), new Vector3(ChunkSize, 0.4f, ChunkSize), new Color("5e8b59"));
-            for (int z = 2; z < ChunkSize - 2; z += 5) for (int x = 2; x < ChunkSize - 2; x += 5)
+            for (int z = 1; z < ChunkSize - 1; z += 3) for (int x = 1; x < ChunkSize - 1; x += 3)
             {
-                float value = noise.GetNoise2D(coord.X * ChunkSize + x, coord.Y * ChunkSize + z);
+                int worldX = coord.X * ChunkSize + x;
+                int worldZ = coord.Y * ChunkSize + z;
+                float value = noise.GetNoise2D(worldX, worldZ);
+                float detailValue = detail.GetNoise2D(worldX, worldZ);
+                float height = Mathf.Clamp((value + 0.35f) * 4.5f + detailValue * 1.2f, 0f, 5.5f);
                 int variant = Mathf.Abs((x * 17 + z * 31 + coord.X * 7 + coord.Y * 13) % 11);
-                if (value < -0.25f) AddCube(new Vector3(x, 0.15f, z), new Vector3(3, 0.3f, 3), new Color("3f7478"));
-                else if (variant == 0) AddCube(new Vector3(x, 1.2f, z), new Vector3(1.8f, 2.4f, 1.8f), new Color("31533b"));
-                else if (variant == 1) AddCube(new Vector3(x, 0.6f, z), new Vector3(1.3f, 1.2f, 1.3f), new Color("7b7772"));
+                if (value < -0.32f) AddCube(new Vector3(x, 0.15f, z), new Vector3(3, 0.3f, 3), new Color("3f7478"));
+                else if (height > 1.0f)
+                {
+                    Color terrainColor = height > 4.0f ? new Color("8b7650") : height > 2.4f ? new Color("6b8f55") : new Color("5e8b59");
+                    AddCube(new Vector3(x, 0.2f + height / 2f, z), new Vector3(3, height, 3), terrainColor);
+                }
+                if (variant == 0 && value > -0.05f) AddCube(new Vector3(x, height + 1.0f, z), new Vector3(1.8f, 2.0f, 1.8f), new Color("31533b"));
+                else if (variant == 1 && height > 0.8f) AddCube(new Vector3(x, height + 0.55f, z), new Vector3(1.3f, 1.1f, 1.3f), new Color("7b7772"));
             }
         }
 
