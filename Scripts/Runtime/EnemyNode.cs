@@ -1,11 +1,12 @@
 using Godot;
 
-public partial class EnemyNode : CharacterBody3D
+public partial class EnemyNode : CharacterBody3D, IDamageable
 {
     private readonly GameBootstrap owner;
     private float health = EnemySystem.EnemyHealth;
     private float attackTimer;
     private readonly Label3D healthBar;
+    public Node3D DamageableNode => this;
 
     public EnemyNode(GameBootstrap owner, Vector3 position, int variant)
     {
@@ -29,7 +30,7 @@ public partial class EnemyNode : CharacterBody3D
             Position = new Vector3(0, 1.8f, 0)
         };
         AddChild(healthBar);
-        owner.RegisterEnemy(this);
+        owner.RegisterDamageable(this);
     }
 
     public override void _PhysicsProcess(double delta)
@@ -69,5 +70,5 @@ public partial class EnemyNode : CharacterBody3D
         if (health <= 0f) QueueFree();
     }
 
-    public override void _ExitTree() => owner?.UnregisterEnemy(this);
+    public override void _ExitTree() => owner?.UnregisterDamageable(this);
 }

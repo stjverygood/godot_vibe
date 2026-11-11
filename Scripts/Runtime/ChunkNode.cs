@@ -16,6 +16,7 @@ public partial class ChunkNode : Node3D
         BuildTerrain(noise, detail);
         AddWaterSurface();
         SpawnEnemies();
+        SpawnHarvestables();
     }
 
     private void SpawnEnemies()
@@ -27,6 +28,23 @@ public partial class ChunkNode : Node3D
             float z = 5f + Mathf.Abs((coord.Y * 37 + i * 17) % 21);
             AddChild(new EnemyNode(owner, new Vector3(x, owner.GetTerrainHeight(Position.X + x, Position.Z + z) + 0.7f, z), i));
         }
+    }
+
+    private void SpawnHarvestables()
+    {
+        SpawnEntity(WorldEntityKind.Tree, 4f, 7f);
+        SpawnEntity(WorldEntityKind.Rock, 15f, 8f);
+        SpawnEntity(WorldEntityKind.Tree, 24f, 10f);
+        SpawnEntity(WorldEntityKind.Building, 22f, 24f);
+        SpawnEntity(WorldEntityKind.Rock, 8f, 25f);
+    }
+
+    private void SpawnEntity(WorldEntityKind kind, float x, float z)
+    {
+        float worldX = Position.X + x;
+        float worldZ = Position.Z + z;
+        float height = owner.GetTerrainHeight(worldX, worldZ);
+        AddChild(new WorldEntityNode(owner, kind, new Vector3(x, height, z)));
     }
 
     private void AddWaterSurface()

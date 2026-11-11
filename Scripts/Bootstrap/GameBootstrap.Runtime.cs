@@ -5,6 +5,7 @@ public partial class GameBootstrap : Node3D
 {
     private CharacterBody3D player;
     internal CharacterBody3D Player => player;
+    internal bool CanInteract => gameStarted && !GetTree().Paused;
     private Camera3D camera;
     private readonly Dictionary<Vector2I, ChunkNode> chunks = new();
     private Vector2I lastChunk = new(int.MinValue, int.MinValue);
@@ -18,16 +19,20 @@ public partial class GameBootstrap : Node3D
     private MeshInstance3D attackRangeVisual;
     private MeshInstance3D handItem;
     private Label hotbarLabel;
+    private Label resourceLabel;
     private Label helpLabel;
+    private Control inventoryOverlay;
+    private InventorySlotButton[] quickbarInventorySlots;
+    private InventorySlotButton[] backpackSlots;
     private readonly InventorySystem inventory = new();
     private float attackActionTimer;
     private bool attackHitDone;
-    private EnemyNode currentAttackTarget;
+    private Node3D currentAttackTarget;
     private Control startOverlay;
     private Control pauseOverlay;
     private Control helpOverlay;
     private bool gameStarted;
-    private readonly List<EnemyNode> enemies = new();
+    private readonly List<IDamageable> damageables = new();
     private readonly FastNoiseLite terrainNoise = new() { Seed = WorldManager.Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
     private readonly FastNoiseLite terrainDetail = new() { Seed = WorldManager.Seed + 91, Frequency = 0.12f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
 
@@ -49,14 +54,22 @@ public partial class GameBootstrap : Node3D
     {
         if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.Escape && gameStarted)
         {
-            GetTree().Paused = !GetTree().Paused;
-            pauseOverlay.Visible = GetTree().Paused;
+            if (inventoryOverlay.Visible)
+            {
+                inventoryOverlay.Visible = false;
+            }
+            else
+            {
+                GetTree().Paused = !GetTree().Paused;
+                pauseOverlay.Visible = GetTree().Paused;
+            }
         }
         if (@event is InputEventKey enter && enter.Pressed && enter.Keycode == Key.Enter && !gameStarted) StartGame();
         if (@event is InputEventKey itemKey && itemKey.Pressed && gameStarted && !GetTree().Paused)
         {
             if (itemKey.Keycode == Key.Q) SelectItem(inventory.SelectedIndex - 1);
             if (itemKey.Keycode == Key.E) SelectItem(inventory.SelectedIndex + 1);
+            if (itemKey.Keycode == Key.B) inventoryOverlay.Visible = !inventoryOverlay.Visible;
         }
     }
 
@@ -110,6 +123,7 @@ public partial class GameBootstrap : Node3D
         if (current != lastChunk) UpdateChunks(false);
         status.Text = $"无限世界 3D\n生命 {playerHealth:0}\n区块 {current.X}, {current.Y}";
         healthBar.Value = playerHealth;
+        resourceLabel.Text = inventory.ResourceSummary;
         attackLabel.Visible = attackFeedback > 0f;
         attackRangeVisual.Visible = attackFeedback > 0f;
     }

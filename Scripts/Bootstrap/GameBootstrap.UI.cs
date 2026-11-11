@@ -5,9 +5,13 @@ public partial class GameBootstrap : Node3D
     private void BuildUi()
     {
         var layer = new CanvasLayer(); AddChild(layer);
-        var panel = new ColorRect { Position = new Vector2(20, 20), Size = new Vector2(300, 105), Color = new Color(0.03f, 0.05f, 0.08f, 0.78f) }; layer.AddChild(panel);
+        var panel = new ColorRect { Position = new Vector2(20, 20), Size = new Vector2(340, 140), Color = new Color(0.03f, 0.05f, 0.08f, 0.78f) }; layer.AddChild(panel);
         status = new Label { Position = new Vector2(15, 12), Text = "无限世界 3D" }; status.AddThemeFontSizeOverride("font_size", 18); status.AddThemeColorOverride("font_color", new Color("f5e6c8")); panel.AddChild(status);
-        healthBar = new ProgressBar { Position = new Vector2(15, 76), Size = new Vector2(270, 18), MinValue = 0, MaxValue = 100, Value = 100, ShowPercentage = true }; panel.AddChild(healthBar);
+        resourceLabel = new Label { Position = new Vector2(15, 76), Text = inventory.ResourceSummary };
+        resourceLabel.AddThemeFontSizeOverride("font_size", 15);
+        resourceLabel.AddThemeColorOverride("font_color", new Color("b9d6e8"));
+        panel.AddChild(resourceLabel);
+        healthBar = new ProgressBar { Position = new Vector2(15, 108), Size = new Vector2(310, 18), MinValue = 0, MaxValue = 100, Value = 100, ShowPercentage = true }; panel.AddChild(healthBar);
         attackLabel = new Label { Position = new Vector2(380, 24), Text = "攻击！", Visible = false }; attackLabel.AddThemeFontSizeOverride("font_size", 24); attackLabel.AddThemeColorOverride("font_color", new Color("ffcf75")); layer.AddChild(attackLabel);
         helpLabel = new Label { Position = new Vector2(20, 660), Text = "WASD 移动   Shift 慢走   窗口化俯视角" }; helpLabel.AddThemeFontSizeOverride("font_size", 16); helpLabel.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(helpLabel);
         hotbarLabel = new Label { Position = new Vector2(350, 485), Size = new Vector2(260, 35), HorizontalAlignment = HorizontalAlignment.Center };
@@ -24,6 +28,8 @@ public partial class GameBootstrap : Node3D
         pauseOverlay.GetNode<Button>("QuitButton").Pressed += QuitGame;
         helpOverlay = MakeHelpOverlay(layer);
         helpOverlay.Visible = false;
+        inventoryOverlay = MakeInventoryOverlay(layer);
+        inventoryOverlay.Visible = false;
     }
 
     private Control MakeOverlay(CanvasLayer layer, string titleText, string subtitleText, string buttonText)
@@ -49,7 +55,7 @@ public partial class GameBootstrap : Node3D
     private void SelectItem(int index)
     {
         inventory.Select(index);
-        handItem.MaterialOverride = Mat(inventory.Colors[inventory.SelectedIndex]);
+        handItem.MaterialOverride = Mat(inventory.SelectedColor);
         RefreshHotbar();
     }
 
@@ -57,8 +63,14 @@ public partial class GameBootstrap : Node3D
     {
         if (hotbarLabel == null) return;
         string text = "快捷栏  ";
-        for (int i = 0; i < inventory.Items.Length; i++) text += i == inventory.SelectedIndex ? $"[ {inventory.Items[i]} ]  " : $"{inventory.Items[i]}  ";
+        for (int i = 0; i < inventory.Quickbar.Length; i++)
+        {
+            InventoryItem item = inventory.Quickbar[i];
+            string name = item == null ? "空" : item.Name;
+            text += i == inventory.SelectedIndex ? $"[ {name} ]  " : $"{name}  ";
+        }
         hotbarLabel.Text = text;
+        RefreshInventorySlots();
     }
 
     private void UpdateUiLayout()
@@ -67,6 +79,8 @@ public partial class GameBootstrap : Node3D
         Vector2 size = GetViewport().GetVisibleRect().Size;
         hotbarLabel.Position = new Vector2((size.X - 260f) / 2f, size.Y - 55f);
         helpLabel.Position = new Vector2(20, size.Y - 42f);
+        if (inventoryOverlay != null)
+            inventoryOverlay.Position = new Vector2((size.X - inventoryOverlay.Size.X) / 2f, (size.Y - inventoryOverlay.Size.Y) / 2f);
         LayoutOverlay(startOverlay, size);
         LayoutOverlay(pauseOverlay, size);
         LayoutHelpOverlay(helpOverlay, size);
@@ -97,11 +111,80 @@ public partial class GameBootstrap : Node3D
         layer.AddChild(panel);
         var title = new Label { Text = "操作说明", Position = new Vector2(330, 105), Size = new Vector2(300, 55), HorizontalAlignment = HorizontalAlignment.Center };
         title.AddThemeFontSizeOverride("font_size", 34); title.AddThemeColorOverride("font_color", new Color("f5e6c8")); panel.AddChild(title);
-        var content = new Label { Text = "WASD       移动\nShift       突进，继续按住可奔跑\nF / 空格    发射攻击弹体\nEsc         暂停或继续游戏\n\n攻击会自动朝向范围内最近的敌人", Position = new Vector2(300, 190), Size = new Vector2(360, 190), HorizontalAlignment = HorizontalAlignment.Center };
+        var content = new Label { Text = "WASD       移动\nShift       突进，继续按住可奔跑\nF / 空格    攻击最近的目标\n靠近掉落物    自动拾取材料\nB           打开背包，拖动物品换位\nEsc         关闭背包或暂停游戏\n\n树木、石块和建筑都可以被攻击", Position = new Vector2(300, 190), Size = new Vector2(250, 280), HorizontalAlignment = HorizontalAlignment.Center };
         content.AddThemeFontSizeOverride("font_size", 20); content.AddThemeColorOverride("font_color", new Color("b9d6e8")); panel.AddChild(content);
         var back = new Button { Text = "返回", Position = new Vector2(390, 410), Size = new Vector2(180, 48) };
         back.AddThemeFontSizeOverride("font_size", 18); back.Pressed += () => helpOverlay.Visible = false; panel.AddChild(back);
         return panel;
+    }
+
+    private Control MakeInventoryOverlay(CanvasLayer layer)
+    {
+        var panel = new ColorRect
+        {
+            Name = "InventoryOverlay",
+            Size = new Vector2(650, 520),
+            Color = new Color(0.03f, 0.04f, 0.07f, 0.97f),
+            MouseFilter = Control.MouseFilterEnum.Stop
+        };
+        layer.AddChild(panel);
+
+        var title = new Label { Text = "背包  ·  拖动物品可与快捷栏交换", Position = new Vector2(28, 20), Size = new Vector2(500, 36) };
+        title.AddThemeFontSizeOverride("font_size", 24);
+        title.AddThemeColorOverride("font_color", new Color("f5e6c8"));
+        panel.AddChild(title);
+
+        var close = new Button { Text = "关闭 (B)", Position = new Vector2(525, 20), Size = new Vector2(100, 36) };
+        close.Pressed += () => inventoryOverlay.Visible = false;
+        panel.AddChild(close);
+
+        var quickbarTitle = new Label { Text = "快捷栏", Position = new Vector2(30, 75), Size = new Vector2(140, 28) };
+        quickbarTitle.AddThemeColorOverride("font_color", new Color("b9d6e8"));
+        panel.AddChild(quickbarTitle);
+
+        quickbarInventorySlots = new InventorySlotButton[InventorySystem.QuickbarSize];
+        for (int i = 0; i < quickbarInventorySlots.Length; i++)
+        {
+            var slot = new InventorySlotButton(inventory, true, i, OnInventoryChanged)
+            {
+                Position = new Vector2(30 + i * 120, 105)
+            };
+            quickbarInventorySlots[i] = slot;
+            panel.AddChild(slot);
+        }
+
+        var backpackTitle = new Label { Text = "背包", Position = new Vector2(30, 185), Size = new Vector2(140, 28) };
+        backpackTitle.AddThemeColorOverride("font_color", new Color("b9d6e8"));
+        panel.AddChild(backpackTitle);
+
+        backpackSlots = new InventorySlotButton[InventorySystem.BackpackSize];
+        for (int i = 0; i < backpackSlots.Length; i++)
+        {
+            int column = i % 5;
+            int row = i / 5;
+            var slot = new InventorySlotButton(inventory, false, i, OnInventoryChanged)
+            {
+                Position = new Vector2(30 + column * 120, 218 + row * 68)
+            };
+            backpackSlots[i] = slot;
+            panel.AddChild(slot);
+        }
+
+        return panel;
+    }
+
+    private void OnInventoryChanged()
+    {
+        handItem.MaterialOverride = Mat(inventory.SelectedColor);
+        resourceLabel.Text = inventory.ResourceSummary;
+        RefreshHotbar();
+    }
+
+    private void RefreshInventorySlots()
+    {
+        if (quickbarInventorySlots == null) return;
+        foreach (InventorySlotButton slot in quickbarInventorySlots) slot.Refresh();
+        foreach (InventorySlotButton slot in backpackSlots) slot.Refresh();
     }
 
     private StandardMaterial3D Mat(Color color) => new() { AlbedoColor = color, Roughness = 0.9f };

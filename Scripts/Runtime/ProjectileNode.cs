@@ -44,7 +44,7 @@ public partial class ProjectileNode : Node3D
         if (distance < 0.75f)
         {
             if (target == owner.Player) owner.ApplyPlayerDamage(damage);
-            else if (target is EnemyNode enemy) enemy.TakeDamage(damage);
+            else if (target is IDamageable damageable) damageable.TakeDamage(damage);
             QueueFree();
             return;
         }

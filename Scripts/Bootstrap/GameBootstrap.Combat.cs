@@ -16,18 +16,19 @@ public partial class GameBootstrap : Node3D
             return;
         }
         float closest = CombatSystem.PlayerAttackRange;
-        foreach (EnemyNode enemy in enemies)
+        foreach (IDamageable damageable in damageables)
         {
-            if (!IsInstanceValid(enemy)) continue;
-            float distance = new Vector2(enemy.GlobalPosition.X - player.GlobalPosition.X, enemy.GlobalPosition.Z - player.GlobalPosition.Z).Length();
-            if (distance < closest) { closest = distance; currentAttackTarget = enemy; }
+            Node3D target = damageable.DamageableNode;
+            if (!IsInstanceValid(target)) continue;
+            float distance = new Vector2(target.GlobalPosition.X - player.GlobalPosition.X, target.GlobalPosition.Z - player.GlobalPosition.Z).Length();
+            if (distance < closest) { closest = distance; currentAttackTarget = target; }
         }
         if (IsInstanceValid(currentAttackTarget)) FaceTarget(currentAttackTarget);
         attackFeedback = 0.5f;
         attackLabel.Text = currentAttackTarget == null ? "攻击落空" : "蓄力攻击";
     }
 
-    private void FaceTarget(EnemyNode target)
+    private void FaceTarget(Node3D target)
     {
         Vector3 toTarget = target.GlobalPosition - player.GlobalPosition;
         toTarget.Y = 0;
@@ -40,8 +41,14 @@ public partial class GameBootstrap : Node3D
         AddChild(projectile);
     }
 
-    internal void RegisterEnemy(EnemyNode enemy) { if (!enemies.Contains(enemy)) enemies.Add(enemy); }
-    internal void UnregisterEnemy(EnemyNode enemy) { enemies.Remove(enemy); }
+    internal void RegisterDamageable(IDamageable damageable) { if (!damageables.Contains(damageable)) damageables.Add(damageable); }
+    internal void UnregisterDamageable(IDamageable damageable) { damageables.Remove(damageable); }
+    internal int AddResources(ResourceKind kind, int amount)
+    {
+        int added = inventory.AddResources(kind, amount);
+        resourceLabel.Text = inventory.ResourceSummary;
+        return added;
+    }
     internal void ApplyPlayerDamage(float damage) => playerHealth = Mathf.Max(0, playerHealth - damage);
 }
 
