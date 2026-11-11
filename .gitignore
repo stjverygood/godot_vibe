@@ -6,3 +6,4 @@ templates.tpz
 *.uid
 *.slnx
 .vs/
+*.7z
