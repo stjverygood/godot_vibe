@@ -24,6 +24,7 @@ public partial class ChunkNode : Node3D
         {
             float x = 5f + Mathf.Abs((coord.X * 31 + i * 13) % 21);
             float z = 5f + Mathf.Abs((coord.Y * 37 + i * 17) % 21);
+            if (!TryFindLand(ref x, ref z)) continue;
             AddChild(new EnemyNode(owner, new Vector3(x, owner.GetTerrainHeight(Position.X + x, Position.Z + z) + 0.7f, z), i));
         }
     }
@@ -39,28 +40,67 @@ public partial class ChunkNode : Node3D
 
     private void SpawnEntity(WorldEntityKind kind, float x, float z)
     {
+        if (!TryFindLand(ref x, ref z)) return;
         float worldX = Position.X + x;
         float worldZ = Position.Z + z;
         float height = owner.GetTerrainHeight(worldX, worldZ);
         AddChild(new WorldEntityNode(owner, kind, new Vector3(x, height, z)));
     }
 
+    private bool TryFindLand(ref float x, ref float z)
+    {
+        if (TerrainGenerator.IsLand(Position.X + x, Position.Z + z)) return true;
+
+        for (float radius = 2f; radius <= 12f; radius += 2f)
+        for (int step = 0; step < 8; step++)
+        {
+            float angle = step * Mathf.Pi / 4f;
+            float candidateX = Mathf.Clamp(x + Mathf.Cos(angle) * radius, 1f, WorldManager.ChunkSize - 1f);
+            float candidateZ = Mathf.Clamp(z + Mathf.Sin(angle) * radius, 1f, WorldManager.ChunkSize - 1f);
+            if (!TerrainGenerator.IsLand(Position.X + candidateX, Position.Z + candidateZ)) continue;
+            x = candidateX;
+            z = candidateZ;
+            return true;
+        }
+
+        return false;
+    }
+
     private void AddWaterSurface()
     {
+        var waterMesh = new SurfaceTool();
+        waterMesh.Begin(Mesh.PrimitiveType.Triangles);
+        int waterCellCount = 0;
+        for (int z = 0; z < WorldManager.ChunkSize; z++)
+        for (int x = 0; x < WorldManager.ChunkSize; x++)
+        {
+            float worldX = coord.X * WorldManager.ChunkSize + x + 0.5f;
+            float worldZ = coord.Y * WorldManager.ChunkSize + z + 0.5f;
+            if (TerrainGenerator.GetHeight(worldX, worldZ) >= TerrainGenerator.SeaLevel) continue;
+
+            waterCellCount++;
+            AddWaterVertex(waterMesh, x, z);
+            AddWaterVertex(waterMesh, x + 1, z);
+            AddWaterVertex(waterMesh, x, z + 1);
+            AddWaterVertex(waterMesh, x + 1, z);
+            AddWaterVertex(waterMesh, x + 1, z + 1);
+            AddWaterVertex(waterMesh, x, z + 1);
+        }
+
+        if (waterCellCount == 0) return;
+
         var material = new StandardMaterial3D
         {
-            AlbedoColor = new Color(0.08f, 0.35f, 0.52f, 0.72f),
+            AlbedoColor = new Color(0.08f, 0.35f, 0.52f, 0.78f),
             Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
             Roughness = 0.15f,
             Metallic = 0.1f
         };
-        AddChild(new MeshInstance3D
-        {
-            Mesh = new BoxMesh { Size = new Vector3(WorldManager.ChunkSize, 0.08f, WorldManager.ChunkSize) },
-            MaterialOverride = material,
-            Position = new Vector3(WorldManager.ChunkSize / 2f, 0, WorldManager.ChunkSize / 2f)
-        });
+        AddChild(new MeshInstance3D { Mesh = waterMesh.Commit(), MaterialOverride = material });
     }
+
+    private static void AddWaterVertex(SurfaceTool tool, int x, int z) =>
+        tool.AddVertex(new Vector3(x, TerrainGenerator.SeaLevel + 0.02f, z));
 
     private void BuildTerrain()
     {
