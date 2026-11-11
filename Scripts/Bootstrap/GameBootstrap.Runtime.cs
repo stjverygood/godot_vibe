@@ -94,7 +94,7 @@ public partial class GameBootstrap : Node3D
         player.Velocity = direction.Normalized() * moveSpeed;
         player.MoveAndSlide();
         if (direction.LengthSquared() > 0.01f) player.Rotation = new Vector3(0, Mathf.Atan2(-direction.X, -direction.Z), 0);
-        camera.GlobalPosition = player.GlobalPosition + new Vector3(0, 16, 16);
+        camera.GlobalPosition = player.GlobalPosition + new Vector3(0, 22, 14);
         camera.LookAt(player.GlobalPosition, Vector3.Up);
         player.Position = new Vector3(player.Position.X, GetTerrainHeight(player.Position.X, player.Position.Z) + 1.0f, player.Position.Z);
         attackCooldown = Mathf.Max(0f, attackCooldown - (float)delta);

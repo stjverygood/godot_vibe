@@ -14,9 +14,9 @@ public partial class GameBootstrap : Node3D
         player.AddChild(handItem);
         attackRangeVisual = new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = 6.7f, OuterRadius = 7.0f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(1f, 0.82f, 0.25f, 0.75f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded }, Visible = false, Position = new Vector3(0, 0.08f, 0) };
         player.AddChild(attackRangeVisual);
-        camera = new Camera3D { Position = new Vector3(0, 16, 16), TopLevel = true, Current = true, Fov = 58 };
+        camera = new Camera3D { Position = new Vector3(0, 22, 14), TopLevel = true, Current = true, Fov = 58 };
         player.AddChild(camera);
-        camera.GlobalPosition = player.GlobalPosition + new Vector3(0, 16, 16);
+        camera.GlobalPosition = player.GlobalPosition + new Vector3(0, 22, 14);
         camera.LookAt(player.GlobalPosition, Vector3.Up);
     }
 }
