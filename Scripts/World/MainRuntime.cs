@@ -19,9 +19,7 @@ public partial class Main : Node3D
     private MeshInstance3D handItem;
     private Label hotbarLabel;
     private Label helpLabel;
-    private readonly string[] inventory = { "空手", "木剑", "石块", "药水", "火球" };
-    private readonly Color[] itemColors = { new Color("ffe08a"), new Color("d8b06a"), new Color("8b9299"), new Color("4ba5d8"), new Color("e58a3d") };
-    private int selectedItem;
+    private readonly InventorySystem inventory = new();
     private float attackActionTimer;
     private bool attackHitDone;
     private EnemyNode currentAttackTarget;
@@ -57,8 +55,8 @@ public partial class Main : Node3D
         if (@event is InputEventKey enter && enter.Pressed && enter.Keycode == Key.Enter && !gameStarted) StartGame();
         if (@event is InputEventKey itemKey && itemKey.Pressed && gameStarted && !GetTree().Paused)
         {
-            if (itemKey.Keycode == Key.Q) SelectItem(selectedItem - 1);
-            if (itemKey.Keycode == Key.E) SelectItem(selectedItem + 1);
+            if (itemKey.Keycode == Key.Q) SelectItem(inventory.SelectedIndex - 1);
+            if (itemKey.Keycode == Key.E) SelectItem(inventory.SelectedIndex + 1);
         }
     }
 
@@ -99,7 +97,7 @@ public partial class Main : Node3D
                 attackHitDone = true;
                 if (IsInstanceValid(currentAttackTarget))
                 {
-                    bool fireball = selectedItem == 4;
+                    bool fireball = inventory.IsFireball;
                     float damage = fireball ? 50f : 35f;
                     SpawnProjectile(player.GlobalPosition + new Vector3(0, 1.1f, 0), currentAttackTarget, damage, fireball ? new Color("ff7a32") : new Color("dcecff"), fireball);
                     attackLabel.Text = fireball ? "火球！-50" : "剑气！-35";
@@ -122,7 +120,7 @@ public partial class Main : Node3D
         attackActionTimer = 0.5f;
         attackHitDone = false;
         currentAttackTarget = null;
-        if (selectedItem != 1 && selectedItem != 4)
+        if (!inventory.HasAttackEffect)
         {
             attackActionTimer = 0.15f;
             attackFeedback = 0.5f;
@@ -187,7 +185,7 @@ public partial class Main : Node3D
         player.AddChild(new MeshInstance3D { Mesh = new CapsuleMesh { Radius = 0.45f, Height = 1.8f }, MaterialOverride = Mat(new Color("e98b62")), Position = new Vector3(0, 0.9f, 0) });
         player.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.34f, Height = 0.68f }, MaterialOverride = Mat(new Color("f6c48f")), Position = new Vector3(0, 2f, 0) });
         player.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.28f, 0.3f, 0.7f) }, MaterialOverride = Mat(new Color("ffe08a")), Position = new Vector3(0, 1.15f, -0.55f) });
-        handItem = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.22f, 0.22f, 0.65f) }, MaterialOverride = Mat(itemColors[0]), Position = new Vector3(0.65f, 1.15f, -0.45f) };
+        handItem = new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.22f, 0.22f, 0.65f) }, MaterialOverride = Mat(inventory.Colors[0]), Position = new Vector3(0.65f, 1.15f, -0.45f) };
         player.AddChild(handItem);
         attackRangeVisual = new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = 6.7f, OuterRadius = 7.0f }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(1f, 0.82f, 0.25f, 0.75f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded }, Visible = false, Position = new Vector3(0, 0.08f, 0) };
         player.AddChild(attackRangeVisual);
@@ -243,8 +241,8 @@ public partial class Main : Node3D
 
     private void SelectItem(int index)
     {
-        selectedItem = (index % inventory.Length + inventory.Length) % inventory.Length;
-        handItem.MaterialOverride = Mat(itemColors[selectedItem]);
+        inventory.Select(index);
+        handItem.MaterialOverride = Mat(inventory.Colors[inventory.SelectedIndex]);
         RefreshHotbar();
     }
 
@@ -252,7 +250,7 @@ public partial class Main : Node3D
     {
         if (hotbarLabel == null) return;
         string text = "快捷栏  ";
-        for (int i = 0; i < inventory.Length; i++) text += i == selectedItem ? $"[ {inventory[i]} ]  " : $"{inventory[i]}  ";
+        for (int i = 0; i < inventory.Items.Length; i++) text += i == inventory.SelectedIndex ? $"[ {inventory.Items[i]} ]  " : $"{inventory.Items[i]}  ";
         hotbarLabel.Text = text;
     }
 
