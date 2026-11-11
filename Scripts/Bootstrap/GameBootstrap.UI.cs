@@ -56,6 +56,7 @@ public partial class GameBootstrap : Node3D
     {
         inventory.Select(index);
         handItem.MaterialOverride = Mat(inventory.SelectedColor);
+        handItem.Visible = inventory.SelectedItem != null;
         RefreshHotbar();
     }
 
@@ -176,6 +177,7 @@ public partial class GameBootstrap : Node3D
     private void OnInventoryChanged()
     {
         handItem.MaterialOverride = Mat(inventory.SelectedColor);
+        handItem.Visible = inventory.SelectedItem != null;
         resourceLabel.Text = inventory.ResourceSummary;
         RefreshHotbar();
     }

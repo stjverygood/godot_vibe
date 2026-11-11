@@ -2,7 +2,6 @@ using Godot;
 
 public enum ItemKind
 {
-    EmptyHand,
     WoodenSword,
     Stone,
     Potion,
@@ -18,7 +17,6 @@ public sealed class InventoryItem
     public int Count { get; set; }
     public string Name => Kind switch
     {
-        ItemKind.EmptyHand => "空手",
         ItemKind.WoodenSword => "木剑",
         ItemKind.Stone => "石块",
         ItemKind.Potion => "药水",
@@ -30,7 +28,6 @@ public sealed class InventoryItem
 
     public Color Color => Kind switch
     {
-        ItemKind.EmptyHand => new Color("ffe08a"),
         ItemKind.WoodenSword => new Color("d8b06a"),
         ItemKind.Stone => new Color("8b9299"),
         ItemKind.Potion => new Color("4ba5d8"),
@@ -53,9 +50,9 @@ public sealed class InventorySystem
     public const int BackpackSize = 20;
     public const int StackLimit = 99;
 
-    public InventoryItem[] Quickbar { get; } =
+    public InventoryItem[] Quickbar { get; } = new InventoryItem[]
     {
-        new(ItemKind.EmptyHand),
+        null,
         new(ItemKind.WoodenSword),
         new(ItemKind.Stone),
         new(ItemKind.Potion),
