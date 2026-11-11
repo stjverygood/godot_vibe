@@ -84,11 +84,11 @@ public partial class GameBootstrap : Node3D
     private void BuildLighting()
     {
         var environment = new WorldEnvironment();
-        var settings = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("#6fa4c4"), AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = new Color("#b9d6e8"), AmbientLightEnergy = 0.8f };
+        var settings = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("#101522"), AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = new Color("#39445f"), AmbientLightEnergy = 0.28f };
         environment.Environment = settings;
         AddChild(environment);
-        var sun = new DirectionalLight3D { RotationDegrees = new Vector3(-55, -35, 0), LightColor = new Color("#ffe2ad"), LightEnergy = 1.4f, ShadowEnabled = true };
-        AddChild(sun);
+        var moon = new DirectionalLight3D { RotationDegrees = new Vector3(-55, -35, 0), LightColor = new Color("#9eb9e8"), LightEnergy = 0.22f, ShadowEnabled = true };
+        AddChild(moon);
     }
 
     public override void _PhysicsProcess(double delta)
