@@ -18,6 +18,7 @@ public partial class Main : Node3D
     private MeshInstance3D attackRangeVisual;
     private MeshInstance3D handItem;
     private Label hotbarLabel;
+    private Label helpLabel;
     private readonly string[] inventory = { "空手", "木剑", "石块", "药水", "火球" };
     private readonly Color[] itemColors = { new Color("ffe08a"), new Color("d8b06a"), new Color("8b9299"), new Color("4ba5d8"), new Color("e58a3d") };
     private int selectedItem;
@@ -38,6 +39,12 @@ public partial class Main : Node3D
         BuildLighting(); BuildPlayer(); BuildUi(); UpdateChunks(true);
         Vector2I screen = DisplayServer.ScreenGetSize();
         DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - 560)));
+        UpdateUiLayout();
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMSizeChanged) UpdateUiLayout();
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -67,6 +74,7 @@ public partial class Main : Node3D
 
     public override void _PhysicsProcess(double delta)
     {
+        UpdateUiLayout();
         if (!gameStarted) return;
         Vector2 input = Input.GetVector("left", "right", "forward", "back");
         Vector3 direction = new(input.X, 0, input.Y);
@@ -196,7 +204,7 @@ public partial class Main : Node3D
         status = new Label { Position = new Vector2(15, 12), Text = "无限世界 3D" }; status.AddThemeFontSizeOverride("font_size", 18); status.AddThemeColorOverride("font_color", new Color("f5e6c8")); panel.AddChild(status);
         healthBar = new ProgressBar { Position = new Vector2(15, 76), Size = new Vector2(270, 18), MinValue = 0, MaxValue = 100, Value = 100, ShowPercentage = true }; panel.AddChild(healthBar);
         attackLabel = new Label { Position = new Vector2(380, 24), Text = "攻击！", Visible = false }; attackLabel.AddThemeFontSizeOverride("font_size", 24); attackLabel.AddThemeColorOverride("font_color", new Color("ffcf75")); layer.AddChild(attackLabel);
-        var help = new Label { Position = new Vector2(20, 660), Text = "WASD 移动   Shift 慢走   窗口化俯视角" }; help.AddThemeFontSizeOverride("font_size", 16); help.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(help);
+        helpLabel = new Label { Position = new Vector2(20, 660), Text = "WASD 移动   Shift 慢走   窗口化俯视角" }; helpLabel.AddThemeFontSizeOverride("font_size", 16); helpLabel.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(helpLabel);
         hotbarLabel = new Label { Position = new Vector2(350, 485), Size = new Vector2(260, 35), HorizontalAlignment = HorizontalAlignment.Center };
         hotbarLabel.AddThemeFontSizeOverride("font_size", 18); hotbarLabel.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(hotbarLabel);
         RefreshHotbar();
@@ -246,6 +254,36 @@ public partial class Main : Node3D
         string text = "快捷栏  ";
         for (int i = 0; i < inventory.Length; i++) text += i == selectedItem ? $"[ {inventory[i]} ]  " : $"{inventory[i]}  ";
         hotbarLabel.Text = text;
+    }
+
+    private void UpdateUiLayout()
+    {
+        if (startOverlay == null) return;
+        Vector2 size = GetViewport().GetVisibleRect().Size;
+        hotbarLabel.Position = new Vector2((size.X - 260f) / 2f, size.Y - 55f);
+        helpLabel.Position = new Vector2(20, size.Y - 42f);
+        LayoutOverlay(startOverlay, size);
+        LayoutOverlay(pauseOverlay, size);
+        LayoutHelpOverlay(helpOverlay, size);
+    }
+
+    private void LayoutOverlay(Control panel, Vector2 size)
+    {
+        panel.Size = size;
+        panel.GetChild<Control>(0).Position = new Vector2((size.X - 320f) / 2f, size.Y * 0.31f);
+        panel.GetChild<Control>(1).Position = new Vector2((size.X - 400f) / 2f, size.Y * 0.44f);
+        panel.GetNode<Button>("ActionButton").Position = new Vector2((size.X - 240f) / 2f, size.Y * 0.58f);
+        panel.GetNode<Button>("HelpButton").Position = new Vector2(size.X / 2f - 120f, size.Y * 0.71f);
+        panel.GetNode<Button>("QuitButton").Position = new Vector2(size.X / 2f + 5f, size.Y * 0.71f);
+    }
+
+    private void LayoutHelpOverlay(Control panel, Vector2 size)
+    {
+        if (panel == null) return;
+        panel.Size = size;
+        panel.GetChild<Control>(0).Position = new Vector2((size.X - 300f) / 2f, size.Y * 0.2f);
+        panel.GetChild<Control>(1).Position = new Vector2((size.X - 360f) / 2f, size.Y * 0.35f);
+        panel.GetChild<Button>(2).Position = new Vector2((size.X - 180f) / 2f, size.Y * 0.76f);
     }
 
     private Control MakeHelpOverlay(CanvasLayer layer)
