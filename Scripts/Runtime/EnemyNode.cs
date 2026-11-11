@@ -65,9 +65,14 @@ public partial class EnemyNode : CharacterBody3D, IDamageable
     public void TakeDamage(float damage)
     {
         health -= damage;
+        GameLogger.Info($"敌人受伤：-{damage:0}，剩余生命 {Mathf.Max(0, health):0}");
         int segments = Mathf.Clamp(Mathf.CeilToInt(health / 12f), 0, 6);
         healthBar.Text = new string('█', segments) + new string('░', 6 - segments);
-        if (health <= 0f) QueueFree();
+        if (health <= 0f)
+        {
+            GameLogger.Info("敌人被击败");
+            QueueFree();
+        }
     }
 
     public override void _ExitTree() => owner?.UnregisterDamageable(this);

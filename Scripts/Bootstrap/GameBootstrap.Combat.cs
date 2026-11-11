@@ -13,6 +13,7 @@ public partial class GameBootstrap : Node3D
             attackActionTimer = 0.15f;
             attackFeedback = 0.5f;
             attackLabel.Text = "当前物品没有攻击效果";
+            GameLogger.Info($"攻击未生效：当前快捷栏物品为 {inventory.SelectedItem?.Name ?? "空"}");
             return;
         }
         float closest = CombatSystem.PlayerAttackRange;
@@ -26,6 +27,9 @@ public partial class GameBootstrap : Node3D
         if (IsInstanceValid(currentAttackTarget)) FaceTarget(currentAttackTarget);
         attackFeedback = 0.5f;
         attackLabel.Text = currentAttackTarget == null ? "攻击落空" : "蓄力攻击";
+        GameLogger.Info(currentAttackTarget == null
+            ? $"攻击落空，物品：{inventory.SelectedItem.Name}"
+            : $"开始攻击，物品：{inventory.SelectedItem.Name}，目标：{currentAttackTarget.GetType().Name}");
     }
 
     private void FaceTarget(Node3D target)
@@ -47,6 +51,8 @@ public partial class GameBootstrap : Node3D
     {
         int added = inventory.AddResources(kind, amount);
         resourceLabel.Text = inventory.ResourceSummary;
+        GameLogger.Info($"拾取资源：{kind} x{added}");
+        if (added < amount) GameLogger.Warning($"背包空间不足，未能收取 {kind} x{amount - added}");
         return added;
     }
     internal void ApplyPlayerDamage(float damage) => playerHealth = Mathf.Max(0, playerHealth - damage);

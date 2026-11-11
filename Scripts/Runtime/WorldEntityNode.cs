@@ -51,9 +51,11 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
     {
         if (destroyed) return;
         health -= damage;
+        GameLogger.Info($"场景实体受击：-{damage:0}，剩余生命 {Mathf.Max(0, health):0}");
         if (health > 0f) return;
 
         destroyed = true;
+        GameLogger.Info($"场景实体被摧毁，掉落 {resourceKind} x{dropAmount}");
         var drop = new WorldDropNode(owner, resourceKind, dropAmount)
         {
             GlobalPosition = GlobalPosition + new Vector3(0, 0.5f, 0)

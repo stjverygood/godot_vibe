@@ -20,6 +20,7 @@ public partial class GameBootstrap : Node3D
         var remove = new List<Vector2I>();
         foreach (var pair in chunks) if (!wanted.Contains(pair.Key)) remove.Add(pair.Key);
         foreach (var coord in remove) { chunks[coord].QueueFree(); chunks.Remove(coord); }
+        GameLogger.Info($"区块中心更新为 {center.X},{center.Y}；当前加载 {chunks.Count} 个区块");
     }
 
 }

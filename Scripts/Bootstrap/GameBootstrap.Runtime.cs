@@ -36,16 +36,20 @@ public partial class GameBootstrap : Node3D
 
     public override void _Ready()
     {
+        GameLogger.Initialize();
+        GameLogger.Info("游戏初始化开始");
         ProcessMode = ProcessModeEnum.Always;
         BuildLighting(); BuildPlayer(); BuildUi(); UpdateChunks(true);
         Vector2I screen = DisplayServer.ScreenGetSize();
         DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - 560)));
         UpdateUiLayout();
+        GameLogger.Info("游戏场景初始化完成");
     }
 
     public override void _Notification(int what)
     {
         if (what == NotificationWMSizeChanged) UpdateUiLayout();
+        if (what == NotificationWMCloseRequest) GameLogger.Info("窗口关闭请求");
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -55,11 +59,13 @@ public partial class GameBootstrap : Node3D
             if (inventoryOverlay.Visible)
             {
                 inventoryOverlay.Visible = false;
+                GameLogger.Info("关闭背包界面");
             }
             else
             {
                 GetTree().Paused = !GetTree().Paused;
                 pauseOverlay.Visible = GetTree().Paused;
+                GameLogger.Info(GetTree().Paused ? "游戏暂停" : "游戏继续");
             }
         }
         if (@event is InputEventKey enter && enter.Pressed && enter.Keycode == Key.Enter && !gameStarted) StartGame();
@@ -67,7 +73,11 @@ public partial class GameBootstrap : Node3D
         {
             if (itemKey.Keycode == Key.Q) SelectItem(inventory.SelectedIndex - 1);
             if (itemKey.Keycode == Key.E) SelectItem(inventory.SelectedIndex + 1);
-            if (itemKey.Keycode == Key.B) inventoryOverlay.Visible = !inventoryOverlay.Visible;
+            if (itemKey.Keycode == Key.B)
+            {
+                inventoryOverlay.Visible = !inventoryOverlay.Visible;
+                GameLogger.Info(inventoryOverlay.Visible ? "打开背包界面" : "关闭背包界面");
+            }
         }
     }
 

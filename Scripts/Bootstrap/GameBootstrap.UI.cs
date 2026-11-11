@@ -72,16 +72,17 @@ public partial class GameBootstrap : Node3D
         return panel;
     }
 
-    private void StartGame() { gameStarted = true; startOverlay.Visible = false; }
-    private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; }
+    private void StartGame() { gameStarted = true; startOverlay.Visible = false; GameLogger.Info("玩家开始游戏"); }
+    private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; GameLogger.Info("游戏继续"); }
     private void ShowHelp() { helpOverlay.Visible = true; }
-    private void QuitGame() { GetTree().Quit(); }
+    private void QuitGame() { GameLogger.Info("玩家请求退出游戏"); GetTree().Quit(); }
 
     private void SelectItem(int index)
     {
         inventory.Select(index);
         handItem.MaterialOverride = Mat(inventory.SelectedColor);
         handItem.Visible = inventory.SelectedItem != null;
+        GameLogger.Info($"切换快捷栏：{inventory.SelectedItem?.Name ?? "空"}（槽位 {inventory.SelectedIndex + 1}）");
         RefreshHotbar();
     }
 

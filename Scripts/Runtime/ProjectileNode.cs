@@ -43,8 +43,16 @@ public partial class ProjectileNode : Node3D
         float distance = offset.Length();
         if (distance < 0.75f)
         {
-            if (target == owner.Player) owner.ApplyPlayerDamage(damage);
-            else if (target is IDamageable damageable) damageable.TakeDamage(damage);
+            if (target == owner.Player)
+            {
+                owner.ApplyPlayerDamage(damage);
+                GameLogger.Info($"玩家受到伤害：-{damage:0}");
+            }
+            else if (target is IDamageable damageable)
+            {
+                GameLogger.Info($"投射物命中 {target.GetType().Name}");
+                damageable.TakeDamage(damage);
+            }
             QueueFree();
             return;
         }
