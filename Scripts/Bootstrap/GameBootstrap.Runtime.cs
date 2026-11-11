@@ -10,7 +10,6 @@ public partial class GameBootstrap : Node3D
     private readonly Dictionary<Vector2I, ChunkNode> chunks = new();
     private Vector2I lastChunk = new(int.MinValue, int.MinValue);
     private Label status;
-    private ProgressBar healthBar;
     private Label attackLabel;
     private float attackFeedback;
     private float playerHealth = 100f;
@@ -18,9 +17,10 @@ public partial class GameBootstrap : Node3D
     private float dashTimer;
     private MeshInstance3D attackRangeVisual;
     private MeshInstance3D handItem;
-    private Label hotbarLabel;
     private Label resourceLabel;
-    private Label helpLabel;
+    private Label controlsLabel;
+    private ColorRect hotbarPanel;
+    private Button[] hudQuickbarSlots;
     private Control inventoryOverlay;
     private InventorySlotButton[] quickbarInventorySlots;
     private InventorySlotButton[] backpackSlots;
@@ -122,7 +122,6 @@ public partial class GameBootstrap : Node3D
         Vector2I current = new(Mathf.FloorToInt(player.Position.X / WorldManager.ChunkSize), Mathf.FloorToInt(player.Position.Z / WorldManager.ChunkSize));
         if (current != lastChunk) UpdateChunks(false);
         status.Text = $"无限世界 3D\n生命 {playerHealth:0}\n区块 {current.X}, {current.Y}";
-        healthBar.Value = playerHealth;
         resourceLabel.Text = inventory.ResourceSummary;
         attackLabel.Visible = attackFeedback > 0f;
         attackRangeVisual.Visible = attackFeedback > 0f;

@@ -64,7 +64,7 @@ public sealed class InventorySystem
     public bool HasAttackEffect => SelectedItem?.Kind is ItemKind.WoodenSword or ItemKind.Fireball;
     public bool IsFireball => SelectedItem?.Kind == ItemKind.Fireball;
     public Color SelectedColor => SelectedItem?.Color ?? new Color("ffe08a");
-    public string ResourceSummary => $"木材 {Count(ItemKind.Wood)}   石料 {Count(ItemKind.StoneOre)}   砖块 {Count(ItemKind.Brick)}";
+    public string ResourceSummary => $"木 {Count(ItemKind.Wood)}   石 {Count(ItemKind.StoneOre)}   砖 {Count(ItemKind.Brick)}";
 
     public void Select(int index) => SelectedIndex = (index % QuickbarSize + QuickbarSize) % QuickbarSize;
 

@@ -5,17 +5,42 @@ public partial class GameBootstrap : Node3D
     private void BuildUi()
     {
         var layer = new CanvasLayer(); AddChild(layer);
-        var panel = new ColorRect { Position = new Vector2(20, 20), Size = new Vector2(340, 140), Color = new Color(0.03f, 0.05f, 0.08f, 0.78f) }; layer.AddChild(panel);
-        status = new Label { Position = new Vector2(15, 12), Text = "无限世界 3D" }; status.AddThemeFontSizeOverride("font_size", 18); status.AddThemeColorOverride("font_color", new Color("f5e6c8")); panel.AddChild(status);
-        resourceLabel = new Label { Position = new Vector2(15, 76), Text = inventory.ResourceSummary };
-        resourceLabel.AddThemeFontSizeOverride("font_size", 15);
+        status = new Label { Position = new Vector2(20, 18), Text = "生命 100  ·  区块 0, 0" };
+        status.AddThemeFontSizeOverride("font_size", 15);
+        status.AddThemeColorOverride("font_color", new Color("f5e6c8"));
+        layer.AddChild(status);
+        resourceLabel = new Label { Position = new Vector2(20, 41), Text = inventory.ResourceSummary };
+        resourceLabel.AddThemeFontSizeOverride("font_size", 13);
         resourceLabel.AddThemeColorOverride("font_color", new Color("b9d6e8"));
-        panel.AddChild(resourceLabel);
-        healthBar = new ProgressBar { Position = new Vector2(15, 108), Size = new Vector2(310, 18), MinValue = 0, MaxValue = 100, Value = 100, ShowPercentage = true }; panel.AddChild(healthBar);
-        attackLabel = new Label { Position = new Vector2(380, 24), Text = "攻击！", Visible = false }; attackLabel.AddThemeFontSizeOverride("font_size", 24); attackLabel.AddThemeColorOverride("font_color", new Color("ffcf75")); layer.AddChild(attackLabel);
-        helpLabel = new Label { Position = new Vector2(20, 660), Text = "WASD 移动   Shift 慢走   窗口化俯视角" }; helpLabel.AddThemeFontSizeOverride("font_size", 16); helpLabel.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(helpLabel);
-        hotbarLabel = new Label { Position = new Vector2(350, 485), Size = new Vector2(260, 35), HorizontalAlignment = HorizontalAlignment.Center };
-        hotbarLabel.AddThemeFontSizeOverride("font_size", 18); hotbarLabel.AddThemeColorOverride("font_color", new Color("f5e6c8")); layer.AddChild(hotbarLabel);
+        layer.AddChild(resourceLabel);
+        attackLabel = new Label { Position = new Vector2(0, 24), Size = new Vector2(960, 32), Text = "攻击！", Visible = false, HorizontalAlignment = HorizontalAlignment.Center };
+        attackLabel.AddThemeFontSizeOverride("font_size", 20);
+        attackLabel.AddThemeColorOverride("font_color", new Color("ffcf75"));
+        layer.AddChild(attackLabel);
+        controlsLabel = new Label { Position = new Vector2(760, 24), Text = "B 背包  ·  Q/E 切换" };
+        controlsLabel.AddThemeFontSizeOverride("font_size", 14);
+        controlsLabel.AddThemeColorOverride("font_color", new Color("e6edf2"));
+        layer.AddChild(controlsLabel);
+        hotbarPanel = new ColorRect { Size = new Vector2(500, 64), Color = new Color(0.03f, 0.05f, 0.08f, 0.74f) };
+        layer.AddChild(hotbarPanel);
+        hudQuickbarSlots = new Button[InventorySystem.QuickbarSize];
+        for (int i = 0; i < hudQuickbarSlots.Length; i++)
+        {
+            int index = i;
+            var slot = new Button
+            {
+                Position = new Vector2(8 + i * 97, 7),
+                Size = new Vector2(90, 50),
+                Text = "",
+                FocusMode = Control.FocusModeEnum.None,
+                ToggleMode = true
+            };
+            slot.AddThemeFontSizeOverride("font_size", 14);
+            InventorySlotButton.ApplySimpleBorder(slot);
+            slot.Pressed += () => SelectItem(index);
+            hudQuickbarSlots[i] = slot;
+            hotbarPanel.AddChild(slot);
+        }
         RefreshHotbar();
         startOverlay = MakeOverlay(layer, "TimeToGo", "无限世界 · 3D 漫游", "开始游戏  (Enter)");
         pauseOverlay = MakeOverlay(layer, "游戏暂停", "探索暂时停下来了", "继续游戏  (Esc)");
@@ -62,15 +87,17 @@ public partial class GameBootstrap : Node3D
 
     private void RefreshHotbar()
     {
-        if (hotbarLabel == null) return;
-        string text = "快捷栏  ";
+        if (hudQuickbarSlots == null) return;
         for (int i = 0; i < inventory.Quickbar.Length; i++)
         {
             InventoryItem item = inventory.Quickbar[i];
-            string name = item == null ? "空" : item.Name;
-            text += i == inventory.SelectedIndex ? $"[ {name} ]  " : $"{name}  ";
+            string name = item == null ? "" : $"{i + 1} · {item.Name}";
+            Button slot = hudQuickbarSlots[i];
+            slot.Text = name;
+            slot.AddThemeColorOverride("font_color", item?.Color ?? new Color("dce4eb"));
+            slot.ButtonPressed = i == inventory.SelectedIndex;
+            InventorySlotButton.ApplySimpleBorder(slot, i == inventory.SelectedIndex);
         }
-        hotbarLabel.Text = text;
         RefreshInventorySlots();
     }
 
@@ -78,8 +105,10 @@ public partial class GameBootstrap : Node3D
     {
         if (startOverlay == null) return;
         Vector2 size = GetViewport().GetVisibleRect().Size;
-        hotbarLabel.Position = new Vector2((size.X - 260f) / 2f, size.Y - 55f);
-        helpLabel.Position = new Vector2(20, size.Y - 42f);
+        hotbarPanel.Position = new Vector2((size.X - hotbarPanel.Size.X) / 2f, size.Y - hotbarPanel.Size.Y - 16f);
+        controlsLabel.Position = new Vector2(size.X - 205f, 24f);
+        attackLabel.Position = new Vector2((size.X - 450f) / 2f, 24f);
+        attackLabel.Size = new Vector2(450f, 32f);
         if (inventoryOverlay != null)
             inventoryOverlay.Position = new Vector2((size.X - inventoryOverlay.Size.X) / 2f, (size.Y - inventoryOverlay.Size.Y) / 2f);
         LayoutOverlay(startOverlay, size);

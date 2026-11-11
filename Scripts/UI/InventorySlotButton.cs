@@ -15,6 +15,7 @@ public partial class InventorySlotButton : Button
         this.slotIndex = slotIndex;
         this.onChanged = onChanged;
         CustomMinimumSize = new Vector2(100, 58);
+        ApplySimpleBorder(this);
         if (isQuickbar)
         {
             Pressed += () =>
@@ -29,10 +30,47 @@ public partial class InventorySlotButton : Button
     public void Refresh()
     {
         InventoryItem item = inventory.GetItem(isQuickbar, slotIndex);
-        string slotName = isQuickbar ? $"快捷栏 {slotIndex + 1}" : $"背包 {slotIndex + 1}";
-        string selected = isQuickbar && inventory.SelectedIndex == slotIndex ? "★ " : "";
-        Text = item == null ? $"{slotName}\n空" : $"{selected}{slotName}\n{item.Name} x{item.Count}";
-        Modulate = item?.Color ?? Colors.White;
+        Text = item == null ? "" : item.Count > 1 ? $"{item.Name}\n×{item.Count}" : item.Name;
+        AddThemeColorOverride("font_color", item?.Color ?? new Color("dce4eb"));
+        ApplySimpleBorder(this, isQuickbar && inventory.SelectedIndex == slotIndex);
+    }
+
+    public static void ApplySimpleBorder(Button button, bool selected = false)
+    {
+        var normal = new StyleBoxFlat
+        {
+            BgColor = selected ? new Color("25313c") : new Color("151c23"),
+            BorderColor = selected ? new Color("e8c879") : new Color("56616b"),
+            BorderWidthLeft = selected ? 2 : 1,
+            BorderWidthTop = selected ? 2 : 1,
+            BorderWidthRight = selected ? 2 : 1,
+            BorderWidthBottom = selected ? 2 : 1,
+            CornerRadiusTopLeft = 4,
+            CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4,
+            CornerRadiusBottomRight = 4,
+            ContentMarginLeft = 5,
+            ContentMarginRight = 5,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4
+        };
+        var hover = new StyleBoxFlat
+        {
+            BgColor = new Color("26323d"),
+            BorderColor = new Color("dce4eb"),
+            BorderWidthLeft = 1,
+            BorderWidthTop = 1,
+            BorderWidthRight = 1,
+            BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 4,
+            CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4,
+            CornerRadiusBottomRight = 4
+        };
+        button.AddThemeStyleboxOverride("normal", normal);
+        button.AddThemeStyleboxOverride("hover", hover);
+        button.AddThemeStyleboxOverride("pressed", hover);
+        button.AddThemeStyleboxOverride("focus", new StyleBoxEmpty());
     }
 
     public override Variant _GetDragData(Vector2 atPosition)
