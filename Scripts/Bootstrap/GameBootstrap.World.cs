@@ -4,11 +4,7 @@ using System.Collections.Generic;
 public partial class GameBootstrap : Node3D
 {
     internal float GetTerrainHeight(float x, float z)
-    {
-        float broad = terrainNoise.GetNoise2D(x, z);
-        float fine = terrainDetail.GetNoise2D(x, z);
-        return Mathf.Clamp((broad + 0.2f) * 5.5f + fine * 0.6f, -1.2f, 7.5f);
-    }
+        => TerrainGenerator.GetHeight(x, z);
 
     private void UpdateChunks(bool force)
     {

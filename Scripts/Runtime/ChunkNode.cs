@@ -11,9 +11,7 @@ public partial class ChunkNode : Node3D
         this.owner = owner;
         Position = new Vector3(coord.X * WorldManager.ChunkSize, 0, coord.Y * WorldManager.ChunkSize);
 
-        var noise = new FastNoiseLite { Seed = WorldManager.Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
-        var detail = new FastNoiseLite { Seed = WorldManager.Seed + 91, Frequency = 0.12f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
-        BuildTerrain(noise, detail);
+        BuildTerrain();
         AddWaterSurface();
         SpawnEnemies();
         SpawnHarvestables();
@@ -64,19 +62,19 @@ public partial class ChunkNode : Node3D
         });
     }
 
-    private void BuildTerrain(FastNoiseLite noise, FastNoiseLite detail)
+    private void BuildTerrain()
     {
         var tool = new SurfaceTool();
         tool.Begin(Mesh.PrimitiveType.Triangles);
         for (int z = 0; z < WorldManager.ChunkSize; z++)
         for (int x = 0; x < WorldManager.ChunkSize; x++)
         {
-            AddTriangle(tool, noise, detail, x, z, x + 1, z, x, z + 1);
-            AddTriangle(tool, noise, detail, x + 1, z, x + 1, z + 1, x, z + 1);
+            AddTriangle(tool, x, z, x + 1, z, x, z + 1);
+            AddTriangle(tool, x + 1, z, x + 1, z + 1, x, z + 1);
         }
 
         var mesh = tool.Commit();
-        var material = new StandardMaterial3D { AlbedoColor = new Color("5e8b59"), Roughness = 0.95f };
+        var material = new StandardMaterial3D { AlbedoColor = Colors.White, Roughness = 0.95f, VertexColorUseAsAlbedo = true };
         AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = material });
 
         var terrainBody = new StaticBody3D();
@@ -84,28 +82,19 @@ public partial class ChunkNode : Node3D
         AddChild(terrainBody);
     }
 
-    private void AddTriangle(SurfaceTool tool, FastNoiseLite noise, FastNoiseLite detail, int ax, int az, int bx, int bz, int cx, int cz)
+    private void AddTriangle(SurfaceTool tool, int ax, int az, int bx, int bz, int cx, int cz)
     {
-        tool.SetColor(TerrainColor(GetHeight(noise, detail, ax, az)));
-        tool.AddVertex(new Vector3(ax, GetHeight(noise, detail, ax, az), az));
-        tool.AddVertex(new Vector3(bx, GetHeight(noise, detail, bx, bz), bz));
-        tool.AddVertex(new Vector3(cx, GetHeight(noise, detail, cx, cz), cz));
+        AddTerrainVertex(tool, ax, az);
+        AddTerrainVertex(tool, bx, bz);
+        AddTerrainVertex(tool, cx, cz);
     }
 
-    private float GetHeight(FastNoiseLite noise, FastNoiseLite detail, int x, int z)
+    private void AddTerrainVertex(SurfaceTool tool, int x, int z)
     {
         int worldX = coord.X * WorldManager.ChunkSize + x;
         int worldZ = coord.Y * WorldManager.ChunkSize + z;
-        float broad = noise.GetNoise2D(worldX, worldZ);
-        float fine = detail.GetNoise2D(worldX, worldZ);
-        return Mathf.Clamp((broad + 0.2f) * 5.5f + fine * 0.6f, -1.2f, 7.5f);
-    }
-
-    private static Color TerrainColor(float height)
-    {
-        if (height < -0.35f) return new Color("3f7478");
-        if (height > 5.5f) return new Color("8b7650");
-        if (height > 3.0f) return new Color("6b8f55");
-        return new Color("5e8b59");
+        float height = TerrainGenerator.GetHeight(worldX, worldZ);
+        tool.SetColor(TerrainGenerator.GetSurfaceColor(worldX, worldZ, height));
+        tool.AddVertex(new Vector3(x, height, z));
     }
 }

@@ -33,8 +33,6 @@ public partial class GameBootstrap : Node3D
     private Control helpOverlay;
     private bool gameStarted;
     private readonly List<IDamageable> damageables = new();
-    private readonly FastNoiseLite terrainNoise = new() { Seed = WorldManager.Seed, Frequency = 0.045f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
-    private readonly FastNoiseLite terrainDetail = new() { Seed = WorldManager.Seed + 91, Frequency = 0.12f, NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth };
 
     public override void _Ready()
     {

@@ -97,14 +97,14 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
             Mesh = new BoxMesh { Size = new Vector3(2.7f, 0.25f, 4.5f) },
             MaterialOverride = roof,
             Position = new Vector3(-0.75f, 3.15f, 0),
-            Rotation = new Vector3(0, 0, -0.55f)
+            Rotation = new Vector3(0, 0, 0.55f)
         });
         AddChild(new MeshInstance3D
         {
             Mesh = new BoxMesh { Size = new Vector3(2.7f, 0.25f, 4.5f) },
             MaterialOverride = roof,
             Position = new Vector3(0.75f, 3.15f, 0),
-            Rotation = new Vector3(0, 0, 0.55f)
+            Rotation = new Vector3(0, 0, -0.55f)
         });
         AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1f, 2.1f, 0.12f) }, MaterialOverride = Material("5b382b"), Position = new Vector3(0, 1.05f, -2.06f) });
     }
