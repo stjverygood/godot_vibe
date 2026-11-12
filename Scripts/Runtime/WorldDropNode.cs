@@ -21,9 +21,16 @@ public partial class WorldDropNode : Node3D
             ResourceKind.Stone => new Color("aeb8c0"),
             _ => new Color("c76a4e")
         };
+        Mesh dropMesh = kind switch
+        {
+            ResourceKind.Wood => new PrismMesh { Size = new Vector3(0.55f, 0.25f, 0.22f) },
+            ResourceKind.Stone => new PrismMesh { Size = new Vector3(0.45f, 0.65f, 0.38f) },
+            _ => new BoxMesh { Size = new Vector3(0.48f, 0.42f, 0.48f) }
+        };
         visual = new MeshInstance3D
         {
-            Mesh = new SphereMesh { Radius = 0.28f, Height = 0.56f },
+            Mesh = dropMesh,
+            Rotation = new Vector3(0.25f, 0.6f, 0.15f),
             MaterialOverride = new StandardMaterial3D
             {
                 AlbedoColor = color,
@@ -66,8 +73,8 @@ public partial class WorldDropNode : Node3D
 
     private static string ResourceName(ResourceKind resource) => resource switch
     {
-        ResourceKind.Wood => "木材",
-        ResourceKind.Stone => "石料",
-        _ => "砖块"
+        ResourceKind.Wood => "灵木",
+        ResourceKind.Stone => "灵矿",
+        _ => "阵材"
     };
 }

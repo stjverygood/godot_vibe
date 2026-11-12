@@ -23,6 +23,12 @@ public sealed class SaveSlotData
     public int Strength { get; set; }
     public int Vitality { get; set; }
     public int Agility { get; set; }
+    public int AttributeSchema { get; set; }
+    public int Blood { get; set; }
+    public int QiAttribute { get; set; }
+    public int Attack { get; set; }
+    public int Defense { get; set; }
+    public float CurrentQi { get; set; } = 50f;
     public int SelectedQuickbarIndex { get; set; }
     public List<InventorySlotData> Quickbar { get; set; } = new();
     public List<InventorySlotData> Backpack { get; set; } = new();
@@ -31,6 +37,7 @@ public sealed class SaveSlotData
 public sealed class InventorySlotData
 {
     public int Kind { get; set; }
+    public string ItemId { get; set; } = "";
     public int Count { get; set; }
 }
 

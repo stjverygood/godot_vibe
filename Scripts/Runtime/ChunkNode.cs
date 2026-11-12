@@ -106,6 +106,7 @@ public partial class ChunkNode : Node3D
             AddTriangle(tool, x + 1, z, x + 1, z + 1, x, z + 1);
         }
 
+        tool.GenerateNormals();
         var mesh = tool.Commit();
         var material = new StandardMaterial3D { AlbedoColor = Colors.White, Roughness = 0.95f, VertexColorUseAsAlbedo = true };
         AddChild(new MeshInstance3D { Mesh = mesh, MaterialOverride = material });

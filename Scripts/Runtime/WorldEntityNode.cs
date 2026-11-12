@@ -20,6 +20,21 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
     private StandardMaterial3D windowMaterial;
 
     public Node3D DamageableNode => this;
+    public ResourceKind ResourceKind => resourceKind;
+    public bool CanBeUsedBy(ItemKind item) => item switch
+    {
+        ItemKind.WoodenAxe => resourceKind == ResourceKind.Wood,
+        ItemKind.StonePickaxe => resourceKind == ResourceKind.Stone,
+        ItemKind.WoodenSword or ItemKind.Fireball or ItemKind.IceSpell => !isBuilding,
+        _ => false
+    };
+
+    public void HitWithItem(ItemKind item, float damage)
+    {
+        float multiplier = item == ItemKind.WoodenAxe && resourceKind == ResourceKind.Wood ? 2.5f
+            : item == ItemKind.StonePickaxe && resourceKind == ResourceKind.Stone ? 2.5f : 1f;
+        TakeDamage(damage * multiplier);
+    }
 
     public WorldEntityNode(GameBootstrap owner, WorldEntityKind kind, Vector3 position)
     {
@@ -54,6 +69,7 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
 
     public void TakeDamage(float damage)
     {
+        if (isBuilding) return;
         if (destroyed) return;
         health -= damage;
         GameLogger.Info($"场景实体受击：-{damage:0}，剩余生命 {Mathf.Max(0, health):0}");
@@ -89,9 +105,9 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
         var wood = Material("79502d");
         var leaves = Material("43824a");
         AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 0.38f, Height = 3.2f }, Position = new Vector3(0, 1.6f, 0) });
-        AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.32f, BottomRadius = 0.48f, Height = 3.2f }, MaterialOverride = wood, Position = new Vector3(0, 1.6f, 0) });
+        AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.32f, BottomRadius = 0.48f, Height = 3.2f, RadialSegments = 5 }, MaterialOverride = wood, Position = new Vector3(0, 1.6f, 0) });
         AddChild(new CollisionShape3D { Shape = new SphereShape3D { Radius = 1.35f }, Position = new Vector3(0, 3.4f, 0) });
-        AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 1.45f, Height = 2.8f }, MaterialOverride = leaves, Position = new Vector3(0, 3.4f, 0) });
+        AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 1.45f, Height = 2.8f, RadialSegments = 5, Rings = 3 }, MaterialOverride = leaves, Position = new Vector3(0, 3.4f, 0) });
     }
 
     private void BuildRock()
@@ -99,7 +115,7 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
         AddChild(new CollisionShape3D { Shape = new SphereShape3D { Radius = 1.15f }, Position = new Vector3(0, 0.95f, 0) });
         AddChild(new MeshInstance3D
         {
-            Mesh = new SphereMesh { Radius = 1f, Height = 1.8f },
+            Mesh = new SphereMesh { Radius = 1f, Height = 1.8f, RadialSegments = 5, Rings = 2 },
             MaterialOverride = Material("777d82"),
             Scale = new Vector3(1.25f, 0.95f, 1.1f),
             Position = new Vector3(0, 0.95f, 0)
@@ -112,6 +128,9 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
         var roof = Material("784b42");
         AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(4f, 3f, 4f) }, Position = new Vector3(0, 1.5f, 0) });
         AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(4f, 3f, 4f) }, MaterialOverride = wall, Position = new Vector3(0, 1.5f, 0) });
+        AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.15f, BottomRadius = 2.8f, Height = 0.4f, RadialSegments = 4 }, MaterialOverride = Material("a64e3f"), Position = new Vector3(0, 3.1f, 0) });
+        AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.1f, BottomRadius = 1.9f, Height = 0.4f, RadialSegments = 4 }, MaterialOverride = Material("c07848"), Position = new Vector3(0, 3.65f, 0) });
+        AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.9f, Height = 0.4f, RadialSegments = 4 }, MaterialOverride = Material("d5aa61"), Position = new Vector3(0, 4.2f, 0) });
         AddChild(new MeshInstance3D
         {
             Mesh = new BoxMesh { Size = new Vector3(2.7f, 0.25f, 4.5f) },

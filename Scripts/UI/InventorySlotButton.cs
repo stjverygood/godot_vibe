@@ -32,6 +32,7 @@ public partial class InventorySlotButton : Button
         InventoryItem item = inventory.GetItem(isQuickbar, slotIndex);
         Text = item == null ? "" : item.Count > 1 ? $"{item.Name}\n×{item.Count}" : item.Name;
         AddThemeColorOverride("font_color", item?.Color ?? UIManager.TextSecondary);
+        TooltipText = item == null ? "空槽位" : $"[{item.CategoryName}] {item.Name}\n{item.Description}";
         ApplySimpleBorder(this, isQuickbar && inventory.SelectedIndex == slotIndex);
     }
 

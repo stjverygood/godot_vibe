@@ -37,7 +37,7 @@ public partial class GameBootstrap : Node3D
         var controlsPanel = new Panel { Position = new Vector2(710, 16), Size = new Vector2(234, 34), MouseFilter = Control.MouseFilterEnum.Ignore };
         controlsPanel.AddThemeStyleboxOverride("panel", UIManager.MakePanelStyle(new Color(0.08f, 0.11f, 0.13f, 0.72f), 2));
         layer.AddChild(controlsPanel);
-        controlsLabel = new Label { Position = new Vector2(11, 7), Size = new Vector2(214, 22), Text = "B 背包   C 属性   Q / E 切换" };
+        controlsLabel = new Label { Position = new Vector2(11, 7), Size = new Vector2(214, 22), Text = "鼠标环视  F / 左键使用" };
         controlsLabel.AddThemeFontSizeOverride("font_size", 14);
         controlsLabel.AddThemeColorOverride("font_color", UIManager.TextPrimary);
         controlsPanel.AddChild(controlsLabel);
@@ -126,11 +126,12 @@ public partial class GameBootstrap : Node3D
         statsText.AddThemeFontSizeOverride("font_size", 20);
         statsText.AddThemeColorOverride("font_color", new Color("b9d6e8"));
         panel.AddChild(statsText);
-        AddAttributeButton(panel, "力量 +", 190, AllocateStrength);
-        AddAttributeButton(panel, "体质 +", 245, AllocateVitality);
-        AddAttributeButton(panel, "敏捷 +", 300, AllocateAgility);
+        AddAttributeButton(panel, "血 +", 175, AllocateBlood);
+        AddAttributeButton(panel, "气 +", 230, AllocateQi);
+        AddAttributeButton(panel, "攻 +", 285, AllocateAttack);
+        AddAttributeButton(panel, "防 +", 340, AllocateDefense);
         var close = new Button { Text = "关闭 (C)", Position = new Vector2(390, 420), Size = new Vector2(180, 42) };
-        close.Pressed += () => statsOverlay.Visible = false;
+        close.Pressed += () => { statsOverlay.Visible = false; GetTree().Paused = false; SetMouseCaptured(true); };
         panel.AddChild(close);
         AddOverlayCard(panel, new Vector2(220, 70), new Vector2(520, 410));
         UIManager.ApplyButtonStyles(panel);
@@ -148,23 +149,23 @@ public partial class GameBootstrap : Node3D
     {
         statsOverlay.Visible = !statsOverlay.Visible;
         GetTree().Paused = statsOverlay.Visible;
+        SetMouseCaptured(!statsOverlay.Visible);
         RefreshStats();
     }
 
     private void RefreshStats()
     {
-        statsText.Text = $"等级：{progression.Level}    经验：{progression.Experience:0}/{progression.ExperienceToNextLevel:0}\n可用属性点：{progression.AttributePoints}\n力量：{progression.Strength}（攻击 +{progression.Strength * 8}%）\n体质：{progression.Vitality}（生命上限 +{progression.Vitality * 12}）\n敏捷：{progression.Agility}（移动速度 +{progression.Agility * 3.5f:0.#}%）";
+        statsText.Text = $"境界：{progression.Realm}    修为：{progression.Experience:0}/{progression.ExperienceToNextLevel:0}\n血：{progression.Blood}（生命上限 +{progression.Blood * 15}）\n气：{progression.Qi}（灵气上限 +{progression.Qi * 12}）\n攻：{progression.Attack}（伤害 +{progression.Attack * 8}%）\n防：{progression.Defense}（减伤上限 70%）\n悟道点：{progression.AttributePoints}";
     }
 
-    private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; GameLogger.Info("游戏继续"); }
-    private void ShowHelp() { helpOverlay.Visible = true; }
+    private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; SetMouseCaptured(true); GameLogger.Info("游戏继续"); }
+    private void ShowHelp() { helpOverlay.Visible = true; SetMouseCaptured(false); }
     private void QuitGame() { SaveCurrentGame(); GameLogger.Info("玩家请求退出游戏"); GetTree().Quit(); }
 
     private void SelectItem(int index)
     {
         inventory.Select(index);
-        handItem.MaterialOverride = Mat(inventory.SelectedColor);
-        handItem.Visible = inventory.SelectedItem != null;
+        UpdateHeldItemVisual();
         GameLogger.Info($"切换快捷栏：{inventory.SelectedItem?.Name ?? "空"}（槽位 {inventory.SelectedIndex + 1}）");
         RefreshHotbar();
     }
@@ -175,10 +176,11 @@ public partial class GameBootstrap : Node3D
         for (int i = 0; i < inventory.Quickbar.Length; i++)
         {
             InventoryItem item = inventory.Quickbar[i];
-            string name = item == null ? "" : $"{i + 1} · {item.Name}" + (item.Count > 1 ? $"\n×{item.Count}" : "");
+            string name = item == null ? "" : $"{i + 1} · {item.Name} [{item.CategoryName}]" + (item.Count > 1 ? $"\n×{item.Count}" : "");
             Button slot = hudQuickbarSlots[i];
             slot.Text = name;
             slot.AddThemeColorOverride("font_color", item?.Color ?? new Color("dce4eb"));
+            slot.TooltipText = item == null ? "空槽位" : $"[{item.CategoryName}] {item.Name}\n{item.Description}";
             slot.ButtonPressed = i == inventory.SelectedIndex;
             InventorySlotButton.ApplySimpleBorder(slot, i == inventory.SelectedIndex);
         }
@@ -207,10 +209,11 @@ public partial class GameBootstrap : Node3D
         statsOverlay.Size = size;
         statsOverlay.GetChild<Control>(1).Position = new Vector2((size.X - 300f) / 2f, size.Y * 0.18f);
         statsText.Position = new Vector2(size.X / 2f - 180f, size.Y * 0.34f);
-        statsOverlay.GetChild<Button>(3).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.37f);
-        statsOverlay.GetChild<Button>(4).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.48f);
-        statsOverlay.GetChild<Button>(5).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.59f);
-        statsOverlay.GetChild<Button>(6).Position = new Vector2((size.X - 180f) / 2f, size.Y * 0.78f);
+        statsOverlay.GetChild<Button>(3).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.33f);
+        statsOverlay.GetChild<Button>(4).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.43f);
+        statsOverlay.GetChild<Button>(5).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.53f);
+        statsOverlay.GetChild<Button>(6).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.63f);
+        statsOverlay.GetChild<Button>(7).Position = new Vector2((size.X - 180f) / 2f, size.Y * 0.78f);
     }
 
     private void LayoutOverlay(Control panel, Vector2 size)
@@ -240,10 +243,10 @@ public partial class GameBootstrap : Node3D
         layer.AddChild(panel);
         var title = new Label { Text = "操作说明", Position = new Vector2(330, 105), Size = new Vector2(300, 55), HorizontalAlignment = HorizontalAlignment.Center };
         title.AddThemeFontSizeOverride("font_size", 34); title.AddThemeColorOverride("font_color", UIManager.TextPrimary); panel.AddChild(title);
-        var content = new Label { Text = "WASD       移动\nShift       突进，继续按住可奔跑\nF / 空格    攻击最近的目标\n靠近掉落物    自动拾取材料\nB           打开背包，拖动物品换位\nC           查看/分配属性点\nEsc         关闭界面或暂停游戏\n\n树木、石块和建筑都可以被攻击", Position = new Vector2(300, 190), Size = new Vector2(250, 280), HorizontalAlignment = HorizontalAlignment.Center };
+        var content = new Label { Text = "WASD       相对镜头移动\n鼠标       环绕角色环视\n滚轮       调整镜头远近\n空格       跳跃\nShift       身法突进 / 奔跑\nF / 左键    催动法器或术法\nQ / E      切换快捷栏\n靠近灵材    自动收入储物袋\nB           打开储物袋\nC           查看/分配血气攻防\nEsc         闭关或暂停\n\n青锋剑斩妖；灵木斧伐木，灵矿镐采矿\n建筑暂为场景装饰", Position = new Vector2(300, 190), Size = new Vector2(250, 280), HorizontalAlignment = HorizontalAlignment.Center };
         content.AddThemeFontSizeOverride("font_size", 18); content.AddThemeColorOverride("font_color", UIManager.TextSecondary); panel.AddChild(content);
         var back = new Button { Text = "返回", Position = new Vector2(390, 410), Size = new Vector2(180, 48) };
-        back.AddThemeFontSizeOverride("font_size", 16); back.Pressed += () => helpOverlay.Visible = false; panel.AddChild(back);
+        back.AddThemeFontSizeOverride("font_size", 16); back.Pressed += () => { helpOverlay.Visible = false; if (!GetTree().Paused) SetMouseCaptured(true); }; panel.AddChild(back);
         AddOverlayCard(panel, new Vector2(230, 75), new Vector2(500, 395));
         UIManager.ApplyButtonStyles(panel);
         return panel;
@@ -266,7 +269,7 @@ public partial class GameBootstrap : Node3D
         panel.AddChild(title);
 
         var close = new Button { Text = "关闭 (B)", Position = new Vector2(525, 20), Size = new Vector2(100, 36) };
-        close.Pressed += () => inventoryOverlay.Visible = false;
+        close.Pressed += () => { inventoryOverlay.Visible = false; SetMouseCaptured(true); };
         panel.AddChild(close);
 
         var quickbarTitle = new Label { Text = "快捷栏", Position = new Vector2(30, 75), Size = new Vector2(140, 28) };
@@ -317,8 +320,7 @@ public partial class GameBootstrap : Node3D
 
     private void OnInventoryChanged()
     {
-        handItem.MaterialOverride = Mat(inventory.SelectedColor);
-        handItem.Visible = inventory.SelectedItem != null;
+        UpdateHeldItemVisual();
         RefreshHotbar();
     }
 

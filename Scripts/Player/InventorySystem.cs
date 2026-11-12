@@ -9,7 +9,37 @@ public enum ItemKind
     Fireball,
     Wood,
     StoneOre,
-    Brick
+    Brick,
+    WoodenAxe,
+    StonePickaxe,
+    IceSpell
+}
+
+public enum ItemCategory { Material, Weapon, Spell, Tool }
+
+public static class ItemCatalog
+{
+    public static ItemCategory Category(ItemKind kind) => kind switch
+    {
+        ItemKind.Wood or ItemKind.StoneOre or ItemKind.Brick or ItemKind.Stone => ItemCategory.Material,
+        ItemKind.WoodenSword => ItemCategory.Weapon,
+        ItemKind.Fireball or ItemKind.IceSpell or ItemKind.Potion => ItemCategory.Spell,
+        _ => ItemCategory.Tool
+    };
+    public static string StableId(ItemKind kind) => kind switch
+    {
+        ItemKind.WoodenSword => "weapon_wooden_sword", ItemKind.Stone => "material_stone",
+        ItemKind.Potion => "spell_potion", ItemKind.Fireball => "spell_fireball",
+        ItemKind.Wood => "material_wood", ItemKind.StoneOre => "material_stone_ore",
+        ItemKind.Brick => "material_brick", ItemKind.WoodenAxe => "tool_wooden_axe",
+        ItemKind.StonePickaxe => "tool_stone_pickaxe", ItemKind.IceSpell => "spell_ice", _ => ""
+    };
+    public static bool TryParseId(string id, out ItemKind kind)
+    {
+        foreach (ItemKind candidate in Enum.GetValues(typeof(ItemKind)))
+            if (StableId(candidate) == id) { kind = candidate; return true; }
+        kind = default; return false;
+    }
 }
 
 public sealed class InventoryItem
@@ -18,13 +48,16 @@ public sealed class InventoryItem
     public int Count { get; set; }
     public string Name => Kind switch
     {
-        ItemKind.WoodenSword => "木剑",
-        ItemKind.Stone => "石块",
-        ItemKind.Potion => "药水",
-        ItemKind.Fireball => "火球",
-        ItemKind.Wood => "木材",
-        ItemKind.StoneOre => "石料",
-        _ => "砖块"
+        ItemKind.WoodenSword => "青锋剑",
+        ItemKind.Stone => "灵石碎片",
+        ItemKind.Potion => "回春丹",
+        ItemKind.Fireball => "赤焰诀",
+        ItemKind.WoodenAxe => "灵木斧",
+        ItemKind.StonePickaxe => "灵矿镐",
+        ItemKind.IceSpell => "寒霜诀",
+        ItemKind.Wood => "灵木",
+        ItemKind.StoneOre => "灵矿",
+        _ => "阵材"
     };
 
     public Color Color => Kind switch
@@ -33,9 +66,26 @@ public sealed class InventoryItem
         ItemKind.Stone => new Color("8b9299"),
         ItemKind.Potion => new Color("4ba5d8"),
         ItemKind.Fireball => new Color("e58a3d"),
+        ItemKind.WoodenAxe => new Color("b77b3e"),
+        ItemKind.StonePickaxe => new Color("aeb8c0"),
+        ItemKind.IceSpell => new Color("79c9ed"),
         ItemKind.Wood => new Color("b77b3e"),
         ItemKind.StoneOre => new Color("aeb8c0"),
         _ => new Color("c76a4e")
+    };
+    public string CategoryName => ItemCatalog.Category(Kind) switch
+    {
+        ItemCategory.Material => "材料", ItemCategory.Weapon => "武器", ItemCategory.Spell => "法术", _ => "工具"
+    };
+    public string Description => Kind switch
+    {
+        ItemKind.WoodenSword => "下品法器。挥出剑气，对妖兽造成伤害。",
+        ItemKind.Fireball => "火系术法。凝聚火球追击目标。",
+        ItemKind.IceSpell => "冰系术法。造成伤害并减缓妖兽。",
+        ItemKind.Potion => "一阶回春丹。恢复 35 点气血，服用后消耗。",
+        ItemKind.WoodenAxe => "采伐灵木的法器，对灵木造成额外伤害。",
+        ItemKind.StonePickaxe => "开采灵矿的法器，对灵矿造成额外伤害。",
+        _ => "天地灵材，可用于炼器、布阵与修建洞府。"
     };
 
     public InventoryItem(ItemKind kind, int count = 1)
@@ -62,7 +112,7 @@ public sealed class InventorySystem
     public InventoryItem[] Backpack { get; } = new InventoryItem[BackpackSize];
     public int SelectedIndex { get; private set; }
     public InventoryItem SelectedItem => Quickbar[SelectedIndex];
-    public bool HasAttackEffect => SelectedItem?.Kind is ItemKind.WoodenSword or ItemKind.Fireball;
+    public bool HasAttackEffect => SelectedItem != null && ItemCatalog.Category(SelectedItem.Kind) != ItemCategory.Material;
     public bool IsFireball => SelectedItem?.Kind == ItemKind.Fireball;
     public Color SelectedColor => SelectedItem?.Color ?? new Color("ffe08a");
     public string ResourceSummary => $"木 {Count(ItemKind.Wood)}   石 {Count(ItemKind.StoneOre)}   砖 {Count(ItemKind.Brick)}";
@@ -77,6 +127,9 @@ public sealed class InventorySystem
         Quickbar[2] = new InventoryItem(ItemKind.Stone);
         Quickbar[3] = new InventoryItem(ItemKind.Potion);
         Quickbar[4] = new InventoryItem(ItemKind.Fireball);
+        Backpack[0] = new InventoryItem(ItemKind.WoodenAxe);
+        Backpack[1] = new InventoryItem(ItemKind.StonePickaxe);
+        Backpack[2] = new InventoryItem(ItemKind.IceSpell);
         Select(0);
     }
 
@@ -101,7 +154,9 @@ public sealed class InventorySystem
         for (int i = 0; i < Math.Min(data.Count, target.Length); i++)
         {
             InventorySlotData slot = data[i];
-            if (Enum.IsDefined(typeof(ItemKind), slot.Kind) && slot.Count > 0)
+            if (ItemCatalog.TryParseId(slot.ItemId, out ItemKind stableKind) && slot.Count > 0)
+                target[i] = new InventoryItem(stableKind, Math.Min(slot.Count, StackLimit));
+            else if (Enum.IsDefined(typeof(ItemKind), slot.Kind) && slot.Count > 0)
                 target[i] = new InventoryItem((ItemKind)slot.Kind, Math.Min(slot.Count, StackLimit));
         }
     }
@@ -110,7 +165,7 @@ public sealed class InventorySystem
     {
         var data = new System.Collections.Generic.List<InventorySlotData>(items.Length);
         foreach (InventoryItem item in items)
-            data.Add(item == null ? new InventorySlotData() { Kind = -1, Count = 0 } : new InventorySlotData { Kind = (int)item.Kind, Count = item.Count });
+            data.Add(item == null ? new InventorySlotData() { Kind = -1, Count = 0 } : new InventorySlotData { Kind = (int)item.Kind, ItemId = ItemCatalog.StableId(item.Kind), Count = item.Count });
         return data;
     }
 

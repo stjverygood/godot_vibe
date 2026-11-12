@@ -14,11 +14,13 @@ public partial class GameBootstrap : Node3D
             progression.Level = Mathf.Max(1, save.Level);
             progression.Experience = Mathf.Max(0f, save.Experience);
             progression.AttributePoints = Mathf.Max(0, save.AttributePoints);
-            progression.Strength = Mathf.Max(0, save.Strength);
-            progression.Vitality = Mathf.Max(0, save.Vitality);
-            progression.Agility = Mathf.Max(0, save.Agility);
+            progression.Blood = Mathf.Max(0, save.AttributeSchema > 0 ? save.Blood : save.Vitality);
+            progression.Qi = Mathf.Max(0, save.AttributeSchema > 0 ? save.QiAttribute : save.Agility);
+            progression.Attack = Mathf.Max(0, save.AttributeSchema > 0 ? save.Attack : save.Strength);
+            progression.Defense = Mathf.Max(0, save.Defense);
             inventory.Load(save);
             playerHealth = Mathf.Clamp(save.Health, 1f, progression.MaxHealth);
+            playerQi = Mathf.Clamp(save.CurrentQi, 0f, progression.MaxQi);
             player.Position = new Vector3(save.PlayerX, save.PlayerY, save.PlayerZ);
         }
         else
@@ -27,25 +29,23 @@ public partial class GameBootstrap : Node3D
             progression.Level = 1;
             progression.Experience = 0f;
             progression.AttributePoints = 0;
-            progression.Strength = 0;
-            progression.Vitality = 0;
-            progression.Agility = 0;
+            progression.Blood = progression.Qi = progression.Attack = progression.Defense = 0;
             playerHealth = progression.MaxHealth;
+            playerQi = progression.MaxQi;
             player.Position = Vector3.Zero;
         }
 
-        player.Position = new Vector3(player.Position.X, TerrainGenerator.GetHeight(player.Position.X, player.Position.Z) + 1f, player.Position.Z);
+        player.Position = new Vector3(player.Position.X, TerrainGenerator.GetHeight(player.Position.X, player.Position.Z), player.Position.Z);
         playerDead = false;
         gameStarted = true;
         GetTree().Paused = false;
+        SetMouseCaptured(true);
         deathOverlay.Visible = false;
         statsOverlay.Visible = false;
         lastChunk = new Vector2I(int.MinValue, int.MinValue);
         UpdateChunks(true);
-        camera.GlobalPosition = player.GlobalPosition + new Vector3(0, 22, 14);
-        camera.LookAt(player.GlobalPosition, Vector3.Up);
-        handItem.MaterialOverride = Mat(inventory.SelectedColor);
-        handItem.Visible = inventory.SelectedItem != null;
+        UpdateThirdPersonCamera(1f);
+        UpdateHeldItemVisual();
         RefreshHotbar();
         RefreshStats();
         GameLogger.Info($"进入存档 {save.Name}，种子 {save.Seed}");
@@ -59,6 +59,7 @@ public partial class GameBootstrap : Node3D
         playerDead = false;
         activeSave = null;
         statsOverlay.Visible = false;
+        SetMouseCaptured(false);
         if (GetParent() is MainMenu main) main.ReturnToMenu(this);
     }
 
@@ -77,41 +78,55 @@ public partial class GameBootstrap : Node3D
         activeSave.PlayerY = player.Position.Y;
         activeSave.PlayerZ = player.Position.Z;
         activeSave.Health = Mathf.Max(1f, playerHealth);
+        activeSave.CurrentQi = playerQi;
         activeSave.Level = progression.Level;
         activeSave.Experience = progression.Experience;
         activeSave.AttributePoints = progression.AttributePoints;
-        activeSave.Strength = progression.Strength;
-        activeSave.Vitality = progression.Vitality;
-        activeSave.Agility = progression.Agility;
+        activeSave.AttributeSchema = 1;
+        activeSave.Blood = progression.Blood;
+        activeSave.QiAttribute = progression.Qi;
+        activeSave.Attack = progression.Attack;
+        activeSave.Defense = progression.Defense;
+        activeSave.Strength = progression.Attack;
+        activeSave.Vitality = progression.Blood;
+        activeSave.Agility = progression.Qi;
         activeSave.HasProgress = true;
         inventory.SaveTo(activeSave);
         SaveSystem.Write(activeSave);
         GameLogger.Info($"存档已保存：{activeSave.Name}");
     }
 
-    private void AllocateStrength()
+    private void AllocateAttack()
     {
         if (progression.AttributePoints <= 0) return;
         progression.AttributePoints--;
-        progression.Strength++;
+        progression.Attack++;
         RefreshStats();
     }
 
-    private void AllocateVitality()
+    private void AllocateBlood()
     {
         if (progression.AttributePoints <= 0) return;
         float oldMax = progression.MaxHealth;
         progression.AttributePoints--;
-        progression.Vitality++;
+        progression.Blood++;
         playerHealth += progression.MaxHealth - oldMax;
         RefreshStats();
     }
 
-    private void AllocateAgility()
+    private void AllocateQi()
     {
         if (progression.AttributePoints <= 0) return;
         progression.AttributePoints--;
-        progression.Agility++;
+        progression.Qi++;
+        RefreshStats();
+    }
+
+    private void AllocateDefense()
+    {
+        if (progression.AttributePoints <= 0) return;
+        progression.AttributePoints--;
+        progression.Defense++;
         RefreshStats();
     }
 
@@ -119,6 +134,7 @@ public partial class GameBootstrap : Node3D
     {
         playerDead = false;
         GetTree().Paused = false;
+        SetMouseCaptured(true);
         playerHealth = Mathf.Max(1f, progression.MaxHealth * 0.5f);
         player.Position = new Vector3(activeSave.PlayerX, TerrainGenerator.GetHeight(activeSave.PlayerX, activeSave.PlayerZ) + 1f, activeSave.PlayerZ);
         deathOverlay.Visible = false;
