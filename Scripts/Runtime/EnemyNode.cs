@@ -71,6 +71,7 @@ public partial class EnemyNode : CharacterBody3D, IDamageable
         if (health <= 0f)
         {
             GameLogger.Info("敌人被击败");
+            owner.GainExperience(25f);
             QueueFree();
         }
     }

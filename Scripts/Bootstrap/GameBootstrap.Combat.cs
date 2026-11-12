@@ -50,11 +50,42 @@ public partial class GameBootstrap : Node3D
     internal int AddResources(ResourceKind kind, int amount)
     {
         int added = inventory.AddResources(kind, amount);
-        resourceLabel.Text = inventory.ResourceSummary;
         GameLogger.Info($"拾取资源：{kind} x{added}");
         if (added < amount) GameLogger.Warning($"背包空间不足，未能收取 {kind} x{amount - added}");
         return added;
     }
-    internal void ApplyPlayerDamage(float damage) => playerHealth = Mathf.Max(0, playerHealth - damage);
+    internal void ApplyPlayerDamage(float damage)
+    {
+        if (playerDead) return;
+        float reducedDamage = damage * (1f - progression.DamageReduction);
+        playerHealth = Mathf.Max(0f, playerHealth - reducedDamage);
+        GameLogger.Info($"玩家受到伤害：-{reducedDamage:0}，生命 {playerHealth:0}/{progression.MaxHealth:0}");
+        if (playerHealth <= 0f)
+        {
+            playerDead = true;
+            currentAttackTarget = null;
+            attackActionTimer = 0f;
+            deathOverlay.Visible = true;
+            GetTree().Paused = true;
+            GameLogger.Info("玩家死亡");
+        }
+    }
+
+    internal float GetPlayerAttackDamage(bool fireball)
+        => (fireball ? CombatSystem.FireballDamage : CombatSystem.SwordDamage) * progression.AttackMultiplier;
+
+    internal void GainExperience(float amount)
+    {
+        progression.Experience += amount;
+        while (progression.Experience >= progression.ExperienceToNextLevel)
+        {
+            progression.Experience -= progression.ExperienceToNextLevel;
+            progression.Level++;
+            progression.AttributePoints++;
+            playerHealth = progression.MaxHealth;
+            GameLogger.Info($"升级到 Lv.{progression.Level}，获得 1 点属性点");
+        }
+        RefreshStats();
+    }
 }
 

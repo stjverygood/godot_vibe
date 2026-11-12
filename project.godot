@@ -1,6 +1,6 @@
 [application]
 config/name="TimeToGo"
-run/main_scene="res://main.tscn"
+run/main_scene="res://Scenes/main_menu.tscn"
 
 [display]
 window/size/viewport_width=1280

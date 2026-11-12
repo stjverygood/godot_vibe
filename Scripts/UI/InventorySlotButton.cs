@@ -31,7 +31,7 @@ public partial class InventorySlotButton : Button
     {
         InventoryItem item = inventory.GetItem(isQuickbar, slotIndex);
         Text = item == null ? "" : item.Count > 1 ? $"{item.Name}\n×{item.Count}" : item.Name;
-        AddThemeColorOverride("font_color", item?.Color ?? new Color("dce4eb"));
+        AddThemeColorOverride("font_color", item?.Color ?? UIManager.TextSecondary);
         ApplySimpleBorder(this, isQuickbar && inventory.SelectedIndex == slotIndex);
     }
 
@@ -39,33 +39,33 @@ public partial class InventorySlotButton : Button
     {
         var normal = new StyleBoxFlat
         {
-            BgColor = selected ? new Color("25313c") : new Color("151c23"),
-            BorderColor = selected ? new Color("e8c879") : new Color("56616b"),
+            BgColor = selected ? new Color("303b41") : new Color("1a242b"),
+            BorderColor = selected ? UIManager.Accent : UIManager.Border,
             BorderWidthLeft = selected ? 2 : 1,
             BorderWidthTop = selected ? 2 : 1,
             BorderWidthRight = selected ? 2 : 1,
             BorderWidthBottom = selected ? 2 : 1,
-            CornerRadiusTopLeft = 4,
-            CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4,
-            CornerRadiusBottomRight = 4,
-            ContentMarginLeft = 5,
-            ContentMarginRight = 5,
-            ContentMarginTop = 4,
-            ContentMarginBottom = 4
+            CornerRadiusTopLeft = 2,
+            CornerRadiusTopRight = 2,
+            CornerRadiusBottomLeft = 2,
+            CornerRadiusBottomRight = 2,
+            ContentMarginLeft = 7,
+            ContentMarginRight = 7,
+            ContentMarginTop = 5,
+            ContentMarginBottom = 5
         };
         var hover = new StyleBoxFlat
         {
-            BgColor = new Color("26323d"),
-            BorderColor = new Color("dce4eb"),
+            BgColor = new Color("2a3a43"),
+            BorderColor = new Color("9db1bc"),
             BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 4,
-            CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4,
-            CornerRadiusBottomRight = 4
+            CornerRadiusTopLeft = 2,
+            CornerRadiusTopRight = 2,
+            CornerRadiusBottomLeft = 2,
+            CornerRadiusBottomRight = 2
         };
         button.AddThemeStyleboxOverride("normal", normal);
         button.AddThemeStyleboxOverride("hover", hover);

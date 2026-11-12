@@ -9,4 +9,8 @@
     <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Keep export artifacts and temporary capture project sources out of the main build. -->
+    <Compile Remove="build/**/*.cs" />
+  </ItemGroup>
 </Project>

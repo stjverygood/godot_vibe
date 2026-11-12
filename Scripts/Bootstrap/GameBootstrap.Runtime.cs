@@ -7,11 +7,14 @@ public partial class GameBootstrap : Node3D
 
     private CharacterBody3D player;
     internal CharacterBody3D Player => player;
-    internal bool CanInteract => gameStarted && !GetTree().Paused;
+    internal bool CanInteract => gameStarted && !playerDead && !GetTree().Paused;
     private Camera3D camera;
     private readonly Dictionary<Vector2I, ChunkNode> chunks = new();
     private Vector2I lastChunk = new(int.MinValue, int.MinValue);
     private Label status;
+    private Label vitalsLabel;
+    private ProgressBar healthBar;
+    private ProgressBar experienceBar;
     private Label attackLabel;
     private float attackFeedback;
     private float playerHealth = 100f;
@@ -19,20 +22,24 @@ public partial class GameBootstrap : Node3D
     private float dashTimer;
     private MeshInstance3D attackRangeVisual;
     private MeshInstance3D handItem;
-    private Label resourceLabel;
     private Label controlsLabel;
-    private ColorRect hotbarPanel;
+    private Control hotbarPanel;
     private Button[] hudQuickbarSlots;
     private Control inventoryOverlay;
     private InventorySlotButton[] quickbarInventorySlots;
     private InventorySlotButton[] backpackSlots;
     private readonly InventorySystem inventory = new();
+    private readonly PlayerProgression progression = new();
+    private SaveSlotData activeSave;
+    private bool playerDead;
     private float attackActionTimer;
     private bool attackHitDone;
     private Node3D currentAttackTarget;
-    private Control startOverlay;
     private Control pauseOverlay;
     private Control helpOverlay;
+    private Control statsOverlay;
+    private Control deathOverlay;
+    private Label statsText;
     private bool gameStarted;
     private readonly List<IDamageable> damageables = new();
 
@@ -41,7 +48,7 @@ public partial class GameBootstrap : Node3D
         GameLogger.Initialize();
         GameLogger.Info("游戏初始化开始");
         ProcessMode = ProcessModeEnum.Always;
-        BuildLighting(); BuildPlayer(); BuildUi(); UpdateChunks(true);
+        BuildLighting(); BuildPlayer(); BuildUi();
         Vector2I screen = DisplayServer.ScreenGetSize();
         DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - 560)));
         UpdateUiLayout();
@@ -51,7 +58,11 @@ public partial class GameBootstrap : Node3D
     public override void _Notification(int what)
     {
         if (what == NotificationWMSizeChanged) UpdateUiLayout();
-        if (what == NotificationWMCloseRequest) GameLogger.Info("窗口关闭请求");
+        if (what == NotificationWMCloseRequest)
+        {
+            SaveCurrentGame();
+            GameLogger.Info("窗口关闭请求");
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -70,9 +81,14 @@ public partial class GameBootstrap : Node3D
                 GameLogger.Info(GetTree().Paused ? "游戏暂停" : "游戏继续");
             }
         }
-        if (@event is InputEventKey enter && enter.Pressed && enter.Keycode == Key.Enter && !gameStarted) StartGame();
+        if (@event is InputEventKey statsKey && statsKey.Pressed && statsKey.Keycode == Key.C && gameStarted && !playerDead && (!GetTree().Paused || statsOverlay.Visible))
+        {
+            ToggleStats();
+            return;
+        }
         if (@event is InputEventKey itemKey && itemKey.Pressed && gameStarted && !GetTree().Paused)
         {
+            if (playerDead) return;
             if (itemKey.Keycode == Key.Q) SelectItem(inventory.SelectedIndex - 1);
             if (itemKey.Keycode == Key.E) SelectItem(inventory.SelectedIndex + 1);
             if (itemKey.Keycode == Key.B)
@@ -91,12 +107,12 @@ public partial class GameBootstrap : Node3D
     public override void _PhysicsProcess(double delta)
     {
         UpdateUiLayout();
-        if (!gameStarted) return;
+        if (!gameStarted || playerDead || statsOverlay.Visible || GetTree().Paused) return;
         Vector2 input = Input.GetVector("left", "right", "forward", "back");
         Vector3 direction = new(input.X, 0, input.Y);
         bool sprintHeld = Input.IsActionPressed("slow_walk");
         if (Input.IsActionJustPressed("slow_walk")) dashTimer = PlayerController.DashDuration;
-        float moveSpeed = dashTimer > 0f ? PlayerController.DashSpeed : sprintHeld ? PlayerController.RunSpeed : PlayerController.WalkSpeed;
+        float moveSpeed = (dashTimer > 0f ? PlayerController.DashSpeed : sprintHeld ? PlayerController.RunSpeed : PlayerController.WalkSpeed) * progression.SpeedMultiplier;
         if (dashTimer > 0f) dashTimer -= (float)delta;
         player.Velocity = direction.Normalized() * moveSpeed;
         player.MoveAndSlide();
@@ -116,9 +132,9 @@ public partial class GameBootstrap : Node3D
                 if (IsInstanceValid(currentAttackTarget))
                 {
                     bool fireball = inventory.IsFireball;
-                    float damage = fireball ? CombatSystem.FireballDamage : CombatSystem.SwordDamage;
+                    float damage = GetPlayerAttackDamage(fireball);
                     SpawnProjectile(player.GlobalPosition + new Vector3(0, 1.1f, 0), currentAttackTarget, damage, fireball ? new Color("ff7a32") : new Color("dcecff"), fireball);
-                    attackLabel.Text = fireball ? "火球！-50" : "剑气！-35";
+                    attackLabel.Text = fireball ? $"火球！-{damage:0}" : $"剑气！-{damage:0}";
                 }
             }
             if (attackActionTimer <= 0f) currentAttackTarget = null;
@@ -126,8 +142,10 @@ public partial class GameBootstrap : Node3D
         else if ((Input.IsKeyPressed(Key.F) || Input.IsKeyPressed(Key.Space)) && attackCooldown <= 0f) StartAttack();
         Vector2I current = new(Mathf.FloorToInt(player.Position.X / WorldManager.ChunkSize), Mathf.FloorToInt(player.Position.Z / WorldManager.ChunkSize));
         if (current != lastChunk) UpdateChunks(false);
-        status.Text = $"无限世界 3D\n生命 {playerHealth:0}\n区块 {current.X}, {current.Y}";
-        resourceLabel.Text = inventory.ResourceSummary;
+        status.Text = $"{activeSave?.Name ?? "世界"}  ·  Lv.{progression.Level}";
+        vitalsLabel.Text = $"生命  {playerHealth:0} / {progression.MaxHealth:0}";
+        healthBar.Value = progression.MaxHealth <= 0 ? 0 : playerHealth / progression.MaxHealth * 100f;
+        experienceBar.Value = progression.ExperienceToNextLevel <= 0 ? 0 : progression.Experience / progression.ExperienceToNextLevel * 100f;
         attackLabel.Visible = attackFeedback > 0f;
         attackRangeVisual.Visible = attackFeedback > 0f;
     }

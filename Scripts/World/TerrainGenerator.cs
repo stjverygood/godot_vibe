@@ -4,14 +4,28 @@ public static class TerrainGenerator
 {
     public const float SeaLevel = 0f;
 
-    private static readonly FastNoiseLite Regions = CreateNoise(WorldManager.Seed, 0.0045f);
-    private static readonly FastNoiseLite Plains = CreateNoise(WorldManager.Seed + 11, 0.008f);
-    private static readonly FastNoiseLite Hills = CreateNoise(WorldManager.Seed + 23, 0.022f);
-    private static readonly FastNoiseLite Ridges = CreateNoise(WorldManager.Seed + 37, 0.011f);
-    private static readonly FastNoiseLite Detail = CreateNoise(WorldManager.Seed + 49, 0.055f);
-    private static readonly FastNoiseLite Moisture = CreateNoise(WorldManager.Seed + 61, 0.007f);
-    private static readonly FastNoiseLite Basins = CreateNoise(WorldManager.Seed + 73, 0.0032f);
-    private static readonly FastNoiseLite Depth = CreateNoise(WorldManager.Seed + 89, 0.014f);
+    private static FastNoiseLite Regions;
+    private static FastNoiseLite Plains;
+    private static FastNoiseLite Hills;
+    private static FastNoiseLite Ridges;
+    private static FastNoiseLite Detail;
+    private static FastNoiseLite Moisture;
+    private static FastNoiseLite Basins;
+    private static FastNoiseLite Depth;
+
+    static TerrainGenerator() => SetSeed(WorldManager.Seed);
+
+    public static void SetSeed(int seed)
+    {
+        Regions = CreateNoise(seed, 0.0045f);
+        Plains = CreateNoise(seed + 11, 0.008f);
+        Hills = CreateNoise(seed + 23, 0.022f);
+        Ridges = CreateNoise(seed + 37, 0.011f);
+        Detail = CreateNoise(seed + 49, 0.055f);
+        Moisture = CreateNoise(seed + 61, 0.007f);
+        Basins = CreateNoise(seed + 73, 0.0032f);
+        Depth = CreateNoise(seed + 89, 0.014f);
+    }
 
     public static float GetHeight(float x, float z)
     {

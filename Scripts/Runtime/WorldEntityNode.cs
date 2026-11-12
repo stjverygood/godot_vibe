@@ -60,6 +60,7 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
         if (health > 0f) return;
 
         destroyed = true;
+        owner.GainExperience(resourceKind == ResourceKind.Brick ? 20f : resourceKind == ResourceKind.Stone ? 10f : 5f);
         GameLogger.Info($"场景实体被摧毁，掉落 {resourceKind} x{dropAmount}");
         var drop = new WorldDropNode(owner, resourceKind, dropAmount)
         {

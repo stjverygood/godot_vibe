@@ -1,4 +1,5 @@
 using Godot;
+using System;
 
 public enum ItemKind
 {
@@ -67,6 +68,51 @@ public sealed class InventorySystem
     public string ResourceSummary => $"木 {Count(ItemKind.Wood)}   石 {Count(ItemKind.StoneOre)}   砖 {Count(ItemKind.Brick)}";
 
     public void Select(int index) => SelectedIndex = (index % QuickbarSize + QuickbarSize) % QuickbarSize;
+
+    public void Reset()
+    {
+        Array.Clear(Quickbar);
+        Array.Clear(Backpack);
+        Quickbar[1] = new InventoryItem(ItemKind.WoodenSword);
+        Quickbar[2] = new InventoryItem(ItemKind.Stone);
+        Quickbar[3] = new InventoryItem(ItemKind.Potion);
+        Quickbar[4] = new InventoryItem(ItemKind.Fireball);
+        Select(0);
+    }
+
+    public void Load(SaveSlotData save)
+    {
+        Array.Clear(Quickbar);
+        Array.Clear(Backpack);
+        LoadSlots(save.Quickbar, Quickbar);
+        LoadSlots(save.Backpack, Backpack);
+        Select(save.SelectedQuickbarIndex);
+    }
+
+    public void SaveTo(SaveSlotData save)
+    {
+        save.Quickbar = SaveSlots(Quickbar);
+        save.Backpack = SaveSlots(Backpack);
+        save.SelectedQuickbarIndex = SelectedIndex;
+    }
+
+    private static void LoadSlots(System.Collections.Generic.List<InventorySlotData> data, InventoryItem[] target)
+    {
+        for (int i = 0; i < Math.Min(data.Count, target.Length); i++)
+        {
+            InventorySlotData slot = data[i];
+            if (Enum.IsDefined(typeof(ItemKind), slot.Kind) && slot.Count > 0)
+                target[i] = new InventoryItem((ItemKind)slot.Kind, Math.Min(slot.Count, StackLimit));
+        }
+    }
+
+    private static System.Collections.Generic.List<InventorySlotData> SaveSlots(InventoryItem[] items)
+    {
+        var data = new System.Collections.Generic.List<InventorySlotData>(items.Length);
+        foreach (InventoryItem item in items)
+            data.Add(item == null ? new InventorySlotData() { Kind = -1, Count = 0 } : new InventorySlotData { Kind = (int)item.Kind, Count = item.Count });
+        return data;
+    }
 
     public InventoryItem GetItem(bool quickbar, int index) => (quickbar ? Quickbar : Backpack)[index];
 
