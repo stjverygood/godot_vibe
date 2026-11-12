@@ -14,6 +14,10 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
     private readonly int dropAmount;
     private float health;
     private bool destroyed;
+    private bool isBuilding;
+    private float nightLightUpdateTimer;
+    private OmniLight3D porchLight;
+    private StandardMaterial3D windowMaterial;
 
     public Node3D DamageableNode => this;
 
@@ -37,6 +41,7 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
                 BuildRock();
                 break;
             default:
+                isBuilding = true;
                 health = 120f;
                 resourceKind = ResourceKind.Brick;
                 dropAmount = 4;
@@ -65,6 +70,18 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
     }
 
     public override void _ExitTree() => owner?.UnregisterDamageable(this);
+
+    public override void _Process(double delta)
+    {
+        if (!isBuilding) return;
+        nightLightUpdateTimer += (float)delta;
+        if (nightLightUpdateTimer < 0.1f) return;
+        nightLightUpdateTimer = 0f;
+
+        float night = DayNightCycle.NightFactor;
+        porchLight.LightEnergy = 1.1f * night;
+        windowMaterial.EmissionEnergyMultiplier = 1.4f * night;
+    }
 
     private void BuildTree()
     {
@@ -109,6 +126,36 @@ public partial class WorldEntityNode : StaticBody3D, IDamageable
             Rotation = new Vector3(0, 0, -0.55f)
         });
         AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1f, 2.1f, 0.12f) }, MaterialOverride = Material("5b382b"), Position = new Vector3(0, 1.05f, -2.06f) });
+
+        windowMaterial = new StandardMaterial3D
+        {
+            AlbedoColor = new Color("ffbd68"),
+            EmissionEnabled = true,
+            Emission = new Color("ff9b42"),
+            EmissionEnergyMultiplier = 0f,
+            Roughness = 0.75f
+        };
+        foreach (float x in new[] { -1.15f, 1.15f })
+        {
+            AddChild(new MeshInstance3D
+            {
+                Mesh = new BoxMesh { Size = new Vector3(0.65f, 0.72f, 0.1f) },
+                MaterialOverride = windowMaterial,
+                Position = new Vector3(x, 1.85f, -2.06f)
+            });
+        }
+
+        porchLight = new OmniLight3D
+        {
+            Name = "PorchLight",
+            Position = new Vector3(0f, 2.3f, -2.45f),
+            LightColor = new Color("ffbd78"),
+            LightEnergy = 0f,
+            OmniRange = 8f,
+            OmniAttenuation = 1.2f,
+            ShadowEnabled = false
+        };
+        AddChild(porchLight);
     }
 
     private static StandardMaterial3D Material(string color) => new() { AlbedoColor = new Color(color), Roughness = 0.9f };

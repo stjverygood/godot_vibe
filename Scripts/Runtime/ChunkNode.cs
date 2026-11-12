@@ -89,14 +89,7 @@ public partial class ChunkNode : Node3D
 
         if (waterCellCount == 0) return;
 
-        var material = new StandardMaterial3D
-        {
-            AlbedoColor = new Color(0.08f, 0.35f, 0.52f, 0.78f),
-            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            Roughness = 0.15f,
-            Metallic = 0.1f
-        };
-        AddChild(new MeshInstance3D { Mesh = waterMesh.Commit(), MaterialOverride = material });
+        AddChild(new MeshInstance3D { Mesh = waterMesh.Commit(), MaterialOverride = DayNightCycle.WaterMaterial });
     }
 
     private static void AddWaterVertex(SurfaceTool tool, int x, int z) =>
