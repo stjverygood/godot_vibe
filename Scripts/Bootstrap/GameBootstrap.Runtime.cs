@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 public partial class GameBootstrap : Node3D
 {
+    private const double DayNightCycleDurationSeconds = 10.0;
+
     private CharacterBody3D player;
     internal CharacterBody3D Player => player;
     internal bool CanInteract => gameStarted && !GetTree().Paused;
@@ -89,6 +91,23 @@ public partial class GameBootstrap : Node3D
         AddChild(environment);
         var moon = new DirectionalLight3D { RotationDegrees = new Vector3(-55, -35, 0), LightColor = new Color("#9eb9e8"), LightEnergy = 0.22f, ShadowEnabled = true };
         AddChild(moon);
+
+        var cycle = CreateTween().SetLoops();
+        double phaseDuration = DayNightCycleDurationSeconds / 4.0;
+        TweenLightPhase(cycle, moon, new Vector3(-35, 15, 0), new Color("#ffae7d"), 0.75f, phaseDuration);
+        TweenLightPhase(cycle, moon, new Vector3(-25, 145, 0), new Color("#fff0d0"), 1.4f, phaseDuration);
+        TweenLightPhase(cycle, moon, new Vector3(-35, 255, 0), new Color("#ff9b68"), 0.75f, phaseDuration);
+        TweenLightPhase(cycle, moon, new Vector3(-55, 325, 0), new Color("#9eb9e8"), 0.22f, phaseDuration);
+    }
+
+    private static void TweenLightPhase(Tween cycle, DirectionalLight3D light, Vector3 rotation, Color color, float energy, double duration)
+    {
+        var rotationTween = cycle.TweenProperty(light, "rotation_degrees", rotation, duration);
+        rotationTween.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        var energyTween = cycle.Parallel().TweenProperty(light, "light_energy", energy, duration);
+        energyTween.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        var colorTween = cycle.Parallel().TweenProperty(light, "light_color", color, duration);
+        colorTween.SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
     }
 
     public override void _PhysicsProcess(double delta)
