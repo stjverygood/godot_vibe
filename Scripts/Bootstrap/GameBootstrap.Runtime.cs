@@ -80,7 +80,7 @@ public partial class GameBootstrap : Node3D
     {
         if (@event is InputEventMouseMotion motion && Input.MouseMode == Input.MouseModeEnum.Captured)
         {
-            cameraYaw += motion.Relative.X * 0.0035f;
+            cameraYaw -= motion.Relative.X * 0.0035f;
             cameraPitch = Mathf.Clamp(cameraPitch + motion.Relative.Y * 0.0025f, 0.12f, 0.95f);
         }
         if (CanInteract && @event is InputEventMouseButton wheel && wheel.Pressed)
