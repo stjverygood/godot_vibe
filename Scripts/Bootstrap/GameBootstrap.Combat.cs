@@ -46,8 +46,14 @@ public partial class GameBootstrap : Node3D
             GameLogger.Info($"使用未生效：当前手持材料 {inventory.SelectedItem?.Name ?? "空"}");
             return;
         }
-        attackDirection = AimDirection;
-        player.Rotation = new Vector3(0f, cameraYaw, 0f);
+        attackDirection = aiming
+            ? GetAimDirection(player.GlobalPosition + new Vector3(0f, 1.1f, 0f))
+            : -player.GlobalTransform.Basis.Z;
+        if (actionItemKind is not (ItemKind.Fireball or ItemKind.IceSpell))
+        {
+            attackDirection.Y = 0f;
+            attackDirection = attackDirection.Normalized();
+        }
         attackFeedback = attackActionDuration;
         if (actionItemKind is ItemKind.WoodenSword or ItemKind.WoodenAxe or ItemKind.StonePickaxe)
         {
@@ -143,6 +149,8 @@ public partial class GameBootstrap : Node3D
         {
             playerDead = true;
             attackActionTimer = 0f;
+            aiming = false;
+            aimReticle.Visible = false;
             deathOverlay.Visible = true;
             GetTree().Paused = true;
             SetMouseCaptured(false);

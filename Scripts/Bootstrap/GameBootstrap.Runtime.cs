@@ -10,8 +10,11 @@ public partial class GameBootstrap : Node3D
     internal bool CanInteract => gameStarted && !playerDead && !GetTree().Paused;
     private Camera3D camera;
     private float cameraYaw;
-    private float cameraPitch = 0.38f;
+    private float cameraPitch = 0.05f;
     private float cameraDistance = 6.5f;
+    private float currentCameraDistance = 6.5f;
+    private bool aiming;
+    private Label aimReticle;
     private readonly Dictionary<Vector2I, ChunkNode> chunks = new();
     private Vector2I lastChunk = new(int.MinValue, int.MinValue);
     private Label status;
@@ -53,6 +56,7 @@ public partial class GameBootstrap : Node3D
     private bool gameStarted;
     private readonly List<IDamageable> damageables = new();
     internal Vector3 AimDirection => new(-Mathf.Sin(cameraYaw), 0f, -Mathf.Cos(cameraYaw));
+    private Vector3 AimDirection3D => new(-Mathf.Sin(cameraYaw) * Mathf.Cos(cameraPitch), Mathf.Sin(cameraPitch), -Mathf.Cos(cameraYaw) * Mathf.Cos(cameraPitch));
 
     public override void _Ready()
     {
@@ -61,7 +65,8 @@ public partial class GameBootstrap : Node3D
         ProcessMode = ProcessModeEnum.Always;
         BuildLighting(); BuildPlayer(); BuildUi();
         Vector2I screen = DisplayServer.ScreenGetSize();
-        DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - 560)));
+        Vector2I window = DisplayServer.WindowGetSize();
+        DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - window.Y - 90)));
         UpdateUiLayout();
         GameLogger.Info("游戏场景初始化完成");
     }
@@ -81,24 +86,30 @@ public partial class GameBootstrap : Node3D
         if (@event is InputEventMouseMotion motion && Input.MouseMode == Input.MouseModeEnum.Captured)
         {
             cameraYaw -= motion.Relative.X * 0.0035f;
-            cameraPitch = Mathf.Clamp(cameraPitch + motion.Relative.Y * 0.0025f, 0.12f, 0.95f);
+            cameraPitch = Mathf.Clamp(cameraPitch - motion.Relative.Y * 0.0025f, -1.48f, 1.48f);
         }
+        if (CanInteract && @event is InputEventMouseButton aimButton && aimButton.ButtonIndex == MouseButton.Right)
+            aiming = aimButton.Pressed;
         if (CanInteract && @event is InputEventMouseButton wheel && wheel.Pressed)
         {
-            if (wheel.ButtonIndex == MouseButton.WheelUp) cameraDistance = Mathf.Max(3.6f, cameraDistance - 0.55f);
-            if (wheel.ButtonIndex == MouseButton.WheelDown) cameraDistance = Mathf.Min(9f, cameraDistance + 0.55f);
+            if (wheel.ButtonIndex == MouseButton.WheelUp) SelectItem(inventory.SelectedIndex - 1);
+            if (wheel.ButtonIndex == MouseButton.WheelDown) SelectItem(inventory.SelectedIndex + 1);
         }
         if (@event is InputEventKey key && key.Pressed && key.Keycode == Key.Escape && gameStarted)
         {
             if (inventoryOverlay.Visible)
             {
                 inventoryOverlay.Visible = false;
+                aiming = false;
+                aimReticle.Visible = false;
                 SetMouseCaptured(true);
                 GameLogger.Info("关闭背包界面");
             }
             else
             {
                 GetTree().Paused = !GetTree().Paused;
+                aiming = false;
+                aimReticle.Visible = false;
                 pauseOverlay.Visible = GetTree().Paused;
                 SetMouseCaptured(!GetTree().Paused);
                 GameLogger.Info(GetTree().Paused ? "游戏暂停" : "游戏继续");
@@ -123,6 +134,8 @@ public partial class GameBootstrap : Node3D
             if (itemKey.Keycode == Key.B)
             {
                 inventoryOverlay.Visible = !inventoryOverlay.Visible;
+                aiming = false;
+                aimReticle.Visible = false;
                 SetMouseCaptured(!inventoryOverlay.Visible);
                 GameLogger.Info(inventoryOverlay.Visible ? "打开背包界面" : "关闭背包界面");
             }
@@ -142,6 +155,7 @@ public partial class GameBootstrap : Node3D
         Vector3 forward = AimDirection;
         Vector3 right = new(Mathf.Cos(cameraYaw), 0f, -Mathf.Sin(cameraYaw));
         Vector3 direction = right * input.X + forward * -input.Y;
+        if (aiming) player.Rotation = new Vector3(0f, cameraYaw, 0f);
         jumpBufferTimer = Mathf.Max(0f, jumpBufferTimer - (float)delta);
         bool sprintHeld = Input.IsActionPressed("slow_walk");
         if (Input.IsActionJustPressed("slow_walk")) dashTimer = PlayerController.DashDuration;
@@ -163,7 +177,7 @@ public partial class GameBootstrap : Node3D
         else velocity.Y = player.Velocity.Y - PlayerController.Gravity * (float)delta;
         player.Velocity = velocity;
         player.MoveAndSlide();
-        if (direction.LengthSquared() > 0.01f) player.Rotation = new Vector3(0, Mathf.Atan2(-direction.X, -direction.Z), 0);
+        if (!aiming && direction.LengthSquared() > 0.01f) player.Rotation = new Vector3(0, Mathf.Atan2(-direction.X, -direction.Z), 0);
         UpdateThirdPersonCamera((float)delta);
         float newGroundHeight = GetTerrainHeight(player.Position.X, player.Position.Z);
         if (player.Position.Y <= newGroundHeight)
@@ -215,20 +229,35 @@ public partial class GameBootstrap : Node3D
         experienceBar.Value = progression.ExperienceToNextLevel <= 0 ? 0 : progression.Experience / progression.ExperienceToNextLevel * 100f;
         attackLabel.Visible = attackFeedback > 0f;
         attackRangeVisual.Visible = attackFeedback > 0f;
+        aimReticle.Visible = aiming;
+    }
+
+    internal Vector3 GetAimDirection(Vector3 origin)
+    {
+        Vector2 center = GetViewport().GetVisibleRect().Size * 0.5f;
+        Vector3 rayOrigin = camera.ProjectRayOrigin(center);
+        Vector3 rayEnd = rayOrigin + camera.ProjectRayNormal(center) * 60f;
+        var query = PhysicsRayQueryParameters3D.Create(rayOrigin, rayEnd);
+        query.Exclude = new Godot.Collections.Array<Rid> { player.GetRid() };
+        var hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
+        Vector3 target = hit.Count > 0 ? (Vector3)hit["position"] : rayEnd;
+        Vector3 direction = target - origin;
+        return direction.LengthSquared() > 0.001f ? direction.Normalized() : AimDirection;
     }
 
     private void UpdateThirdPersonCamera(float delta)
     {
         Vector3 focus = player.GlobalPosition + new Vector3(0f, 1.25f, 0f);
-        float horizontal = Mathf.Cos(cameraPitch) * cameraDistance;
-        Vector3 offset = new(Mathf.Sin(cameraYaw) * horizontal, Mathf.Sin(cameraPitch) * cameraDistance, Mathf.Cos(cameraYaw) * horizontal);
+        float desiredDistance = aiming ? Mathf.Min(cameraDistance, 4.3f) : cameraDistance;
+        currentCameraDistance = desiredDistance;
+        Vector3 offset = -AimDirection3D * currentCameraDistance + Vector3.Up * 0.25f;
         Vector3 desired = focus + offset;
         var query = PhysicsRayQueryParameters3D.Create(focus, desired);
         query.Exclude = new Godot.Collections.Array<Rid> { player.GetRid() };
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
         if (hit.Count > 0) desired = (Vector3)hit["position"] + (focus - desired).Normalized() * 0.25f;
-        camera.GlobalPosition = camera.GlobalPosition.Lerp(desired, Mathf.Clamp(delta * 12f, 0f, 1f));
-        camera.LookAt(focus, Vector3.Up);
+        camera.GlobalPosition = desired;
+        camera.LookAt(focus + AimDirection3D * 30f, Vector3.Up);
     }
 
     private void SetMouseCaptured(bool captured)

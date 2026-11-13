@@ -34,10 +34,23 @@ public partial class GameBootstrap : Node3D
         attackLabel.AddThemeFontSizeOverride("font_size", 20);
         attackLabel.AddThemeColorOverride("font_color", new Color("ffcf75"));
         layer.AddChild(attackLabel);
+        aimReticle = new Label
+        {
+            Text = "+",
+            Position = new Vector2(UIManager.DefaultWidth / 2f - 10f, UIManager.DefaultHeight / 2f - 20f),
+            Size = new Vector2(20f, 40f),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Visible = false,
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
+        aimReticle.AddThemeFontSizeOverride("font_size", 28);
+        aimReticle.AddThemeColorOverride("font_color", new Color("fff2c8"));
+        layer.AddChild(aimReticle);
         var controlsPanel = new Panel { Position = new Vector2(710, 16), Size = new Vector2(234, 34), MouseFilter = Control.MouseFilterEnum.Ignore };
         controlsPanel.AddThemeStyleboxOverride("panel", UIManager.MakePanelStyle(new Color(0.08f, 0.11f, 0.13f, 0.72f), 2));
         layer.AddChild(controlsPanel);
-        controlsLabel = new Label { Position = new Vector2(11, 7), Size = new Vector2(214, 22), Text = "鼠标环视  F / 左键使用" };
+        controlsLabel = new Label { Position = new Vector2(11, 7), Size = new Vector2(214, 22), Text = "右键瞄准  左键使用" };
         controlsLabel.AddThemeFontSizeOverride("font_size", 14);
         controlsLabel.AddThemeColorOverride("font_color", UIManager.TextPrimary);
         controlsPanel.AddChild(controlsLabel);
@@ -148,6 +161,8 @@ public partial class GameBootstrap : Node3D
     private void ToggleStats()
     {
         statsOverlay.Visible = !statsOverlay.Visible;
+        aiming = false;
+        aimReticle.Visible = false;
         GetTree().Paused = statsOverlay.Visible;
         SetMouseCaptured(!statsOverlay.Visible);
         RefreshStats();
@@ -159,7 +174,7 @@ public partial class GameBootstrap : Node3D
     }
 
     private void TogglePause() { GetTree().Paused = false; pauseOverlay.Visible = false; SetMouseCaptured(true); GameLogger.Info("游戏继续"); }
-    private void ShowHelp() { helpOverlay.Visible = true; SetMouseCaptured(false); }
+    private void ShowHelp() { aiming = false; aimReticle.Visible = false; helpOverlay.Visible = true; SetMouseCaptured(false); }
     private void QuitGame() { SaveCurrentGame(); GameLogger.Info("玩家请求退出游戏"); GetTree().Quit(); }
 
     private void SelectItem(int index)
@@ -195,6 +210,7 @@ public partial class GameBootstrap : Node3D
         controlsLabel.GetParent<Control>().Position = new Vector2(size.X - 250f, 16f);
         attackLabel.Position = new Vector2((size.X - 450f) / 2f, 24f);
         attackLabel.Size = new Vector2(450f, 32f);
+        aimReticle.Position = new Vector2((size.X - aimReticle.Size.X) / 2f, (size.Y - aimReticle.Size.Y) / 2f);
         if (inventoryOverlay != null)
             inventoryOverlay.Position = new Vector2((size.X - inventoryOverlay.Size.X) / 2f, (size.Y - inventoryOverlay.Size.Y) / 2f);
         LayoutOverlay(pauseOverlay, size);
@@ -243,7 +259,7 @@ public partial class GameBootstrap : Node3D
         layer.AddChild(panel);
         var title = new Label { Text = "操作说明", Position = new Vector2(330, 105), Size = new Vector2(300, 55), HorizontalAlignment = HorizontalAlignment.Center };
         title.AddThemeFontSizeOverride("font_size", 34); title.AddThemeColorOverride("font_color", UIManager.TextPrimary); panel.AddChild(title);
-        var content = new Label { Text = "WASD       相对镜头移动\n鼠标       环绕角色环视\n滚轮       调整镜头远近\n空格       跳跃\nShift       身法突进 / 奔跑\nF / 左键    催动法器或术法\nQ / E      切换快捷栏\n靠近灵材    自动收入储物袋\nB           打开储物袋\nC           查看/分配血气攻防\nEsc         闭关或暂停\n\n青锋剑斩妖；灵木斧伐木，灵矿镐采矿\n建筑暂为场景装饰", Position = new Vector2(300, 190), Size = new Vector2(250, 280), HorizontalAlignment = HorizontalAlignment.Center };
+        var content = new Label { Text = "WASD       相对镜头移动\n鼠标       环绕角色环视\n按住右键    瞄准，角色转向准星\n左键       使用当前物品\n滚轮       切换快捷栏物品\n空格       跳跃\nShift       身法突进 / 奔跑\nF          使用当前物品\nQ / E      切换快捷栏\n靠近灵材    自动收入储物袋\nB           打开储物袋\nC           查看/分配血气攻防\nEsc         闭关或暂停\n\n瞄准时法术朝准星方向施放\n建筑暂为场景装饰", Position = new Vector2(300, 190), Size = new Vector2(250, 280), HorizontalAlignment = HorizontalAlignment.Center };
         content.AddThemeFontSizeOverride("font_size", 18); content.AddThemeColorOverride("font_color", UIManager.TextSecondary); panel.AddChild(content);
         var back = new Button { Text = "返回", Position = new Vector2(390, 410), Size = new Vector2(180, 48) };
         back.AddThemeFontSizeOverride("font_size", 16); back.Pressed += () => { helpOverlay.Visible = false; if (!GetTree().Paused) SetMouseCaptured(true); }; panel.AddChild(back);
@@ -269,7 +285,7 @@ public partial class GameBootstrap : Node3D
         panel.AddChild(title);
 
         var close = new Button { Text = "关闭 (B)", Position = new Vector2(525, 20), Size = new Vector2(100, 36) };
-        close.Pressed += () => { inventoryOverlay.Visible = false; SetMouseCaptured(true); };
+        close.Pressed += () => { inventoryOverlay.Visible = false; aiming = false; aimReticle.Visible = false; SetMouseCaptured(true); };
         panel.AddChild(close);
 
         var quickbarTitle = new Label { Text = "快捷栏", Position = new Vector2(30, 75), Size = new Vector2(140, 28) };

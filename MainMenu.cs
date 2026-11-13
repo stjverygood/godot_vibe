@@ -17,7 +17,8 @@ public partial class MainMenu : Node
     {
         BuildMainMenu();
         Vector2I screen = DisplayServer.ScreenGetSize();
-        DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - 560)));
+        Vector2I window = DisplayServer.WindowGetSize();
+        DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - window.Y - 90)));
     }
 
     private void BuildMainMenu()
