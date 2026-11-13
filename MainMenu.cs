@@ -1,13 +1,17 @@
 using Godot;
+using System.Collections.Generic;
 using System.Linq;
 
 public partial class MainMenu : Node
 {
     private Control menuPanel;
     private Control savePanel;
+    private CanvasLayer menuLayer;
     private VBoxContainer saveList;
     private Label selectionLabel;
     private Button enterButton;
+    private readonly Dictionary<Control, Vector2> basePanelChildPositions = new();
+    private Vector2 lastMenuViewportSize = Vector2.Zero;
     private ConfirmationDialog deleteDialog;
     private SaveSlotData selectedSave;
     private SaveSlotData pendingDelete;
@@ -16,17 +20,20 @@ public partial class MainMenu : Node
     public override void _Ready()
     {
         BuildMainMenu();
+        LayoutForViewport();
         Vector2I screen = DisplayServer.ScreenGetSize();
         Vector2I window = DisplayServer.WindowGetSize();
         DisplayServer.WindowSetPosition(new Vector2I(20, Mathf.Max(20, screen.Y - window.Y - 90)));
     }
 
+    public override void _Process(double delta) => LayoutForViewport();
+
     private void BuildMainMenu()
     {
-        var layer = new CanvasLayer();
-        AddChild(layer);
+        menuLayer = new CanvasLayer();
+        AddChild(menuLayer);
 
-        menuPanel = CreatePanel(layer);
+        menuPanel = CreatePanel(menuLayer);
         AddCard(menuPanel, new Vector2(200, 72), new Vector2(560, 396));
         AddTitle(menuPanel, "TimeToGo", "无限世界 · 3D 漫游");
         Button enter = AddButton(menuPanel, "进入游戏", new Vector2(350, 300), new Vector2(260, 54), ShowSaveManager);
@@ -34,7 +41,7 @@ public partial class MainMenu : Node
         Button exit = AddButton(menuPanel, "退出游戏", new Vector2(405, 372), new Vector2(150, 44), () => GetTree().Quit());
         UIManager.StyleButton(exit);
 
-        savePanel = CreatePanel(layer);
+        savePanel = CreatePanel(menuLayer);
         savePanel.Visible = false;
         AddCard(savePanel, new Vector2(175, 34), new Vector2(610, 472));
         AddTitle(savePanel, "存档管理", "选择存档进入，或创建一个新世界");
@@ -66,6 +73,36 @@ public partial class MainMenu : Node
         };
         deleteDialog.Confirmed += ConfirmDelete;
         savePanel.AddChild(deleteDialog);
+
+        CaptureBasePanelChildPositions(menuPanel);
+        CaptureBasePanelChildPositions(savePanel);
+    }
+
+    private void CaptureBasePanelChildPositions(Control panel)
+    {
+        foreach (Node child in panel.GetChildren())
+            if (child is Control control) basePanelChildPositions[control] = control.Position;
+    }
+
+    private void LayoutForViewport()
+    {
+        Vector2 viewportSize = GetViewport().GetVisibleRect().Size;
+        if (viewportSize.IsEqualApprox(lastMenuViewportSize)) return;
+        lastMenuViewportSize = viewportSize;
+        float uiScale = Mathf.Max(0.5f, Mathf.Min(viewportSize.X / UIManager.DefaultWidth, viewportSize.Y / UIManager.DefaultHeight));
+        Vector2 size = viewportSize / uiScale;
+        menuLayer.Transform = new Transform2D(0f, Vector2.One * uiScale, 0f, Vector2.Zero);
+        Vector2 offset = (size - new Vector2(UIManager.DefaultWidth, UIManager.DefaultHeight)) * 0.5f;
+
+        foreach (Control panel in new[] { menuPanel, savePanel })
+        {
+            panel.Size = size;
+            foreach (Node child in panel.GetChildren())
+            {
+                if (child is not Control control || !basePanelChildPositions.TryGetValue(control, out Vector2 basePosition)) continue;
+                control.Position = basePosition + offset;
+            }
+        }
     }
 
     private Control CreatePanel(CanvasLayer layer)

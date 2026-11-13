@@ -4,9 +4,12 @@ using System.Linq;
 
 public partial class GameBootstrap : Node3D
 {
+    private CanvasLayer uiLayer;
+
     private void BuildUi()
     {
-        var layer = new CanvasLayer(); AddChild(layer);
+        uiLayer = new CanvasLayer(); AddChild(uiLayer);
+        CanvasLayer layer = uiLayer;
         var hudCard = new Panel { Position = new Vector2(16, 16), Size = new Vector2(250, 91), MouseFilter = Control.MouseFilterEnum.Ignore };
         hudCard.AddThemeStyleboxOverride("panel", UIManager.MakePanelStyle(new Color(0.08f, 0.11f, 0.13f, 0.78f), 2));
         layer.AddChild(hudCard);
@@ -54,7 +57,7 @@ public partial class GameBootstrap : Node3D
         controlsLabel.AddThemeFontSizeOverride("font_size", 14);
         controlsLabel.AddThemeColorOverride("font_color", UIManager.TextPrimary);
         controlsPanel.AddChild(controlsLabel);
-        hotbarPanel = new Panel { Size = new Vector2(500, 64), MouseFilter = Control.MouseFilterEnum.Ignore };
+        hotbarPanel = new Panel { Size = new Vector2(348, 76), MouseFilter = Control.MouseFilterEnum.Ignore };
         hotbarPanel.AddThemeStyleboxOverride("panel", UIManager.MakePanelStyle(new Color(0.07f, 0.09f, 0.11f, 0.78f), 2));
         layer.AddChild(hotbarPanel);
         hudQuickbarSlots = new Button[InventorySystem.QuickbarSize];
@@ -63,13 +66,13 @@ public partial class GameBootstrap : Node3D
             int index = i;
             var slot = new Button
             {
-                Position = new Vector2(8 + i * 97, 7),
-                Size = new Vector2(90, 50),
+                Position = new Vector2(8 + i * 68, 8),
+                Size = new Vector2(60, 60),
                 Text = "",
                 FocusMode = Control.FocusModeEnum.None,
                 ToggleMode = true
             };
-            slot.AddThemeFontSizeOverride("font_size", 14);
+            slot.AddThemeFontSizeOverride("font_size", 11);
             InventorySlotButton.ApplySimpleBorder(slot);
             slot.Pressed += () => SelectItem(index);
             hudQuickbarSlots[i] = slot;
@@ -191,7 +194,7 @@ public partial class GameBootstrap : Node3D
         for (int i = 0; i < inventory.Quickbar.Length; i++)
         {
             InventoryItem item = inventory.Quickbar[i];
-            string name = item == null ? "" : $"{i + 1} · {item.Name} [{item.CategoryName}]" + (item.Count > 1 ? $"\n×{item.Count}" : "");
+            string name = item == null ? "" : $"{i + 1}\n{item.Name}" + (item.Count > 1 ? $"\n×{item.Count}" : "");
             Button slot = hudQuickbarSlots[i];
             slot.Text = name;
             slot.AddThemeColorOverride("font_color", item?.Color ?? new Color("dce4eb"));
@@ -205,7 +208,10 @@ public partial class GameBootstrap : Node3D
     private void UpdateUiLayout()
     {
         if (pauseOverlay == null) return;
-        Vector2 size = GetViewport().GetVisibleRect().Size;
+        Vector2 viewportSize = GetViewport().GetVisibleRect().Size;
+        float uiScale = Mathf.Max(0.5f, Mathf.Min(viewportSize.X / UIManager.DefaultWidth, viewportSize.Y / UIManager.DefaultHeight));
+        Vector2 size = viewportSize / uiScale;
+        uiLayer.Transform = new Transform2D(0f, Vector2.One * uiScale, 0f, Vector2.Zero);
         hotbarPanel.Position = new Vector2((size.X - hotbarPanel.Size.X) / 2f, size.Y - hotbarPanel.Size.Y - 16f);
         controlsLabel.GetParent<Control>().Position = new Vector2(size.X - 250f, 16f);
         attackLabel.Position = new Vector2((size.X - 450f) / 2f, 24f);
@@ -223,6 +229,7 @@ public partial class GameBootstrap : Node3D
     {
         if (statsOverlay == null) return;
         statsOverlay.Size = size;
+        statsOverlay.GetChild<Control>(0).Position = new Vector2((size.X - 520f) / 2f, (size.Y - 410f) / 2f);
         statsOverlay.GetChild<Control>(1).Position = new Vector2((size.X - 300f) / 2f, size.Y * 0.18f);
         statsText.Position = new Vector2(size.X / 2f - 180f, size.Y * 0.34f);
         statsOverlay.GetChild<Button>(3).Position = new Vector2(size.X / 2f + 110f, size.Y * 0.33f);
@@ -235,6 +242,7 @@ public partial class GameBootstrap : Node3D
     private void LayoutOverlay(Control panel, Vector2 size)
     {
         panel.Size = size;
+        panel.GetChild<Control>(0).Position = new Vector2((size.X - 480f) / 2f, (size.Y - 340f) / 2f);
         panel.GetChild<Control>(1).Position = new Vector2((size.X - 320f) / 2f, size.Y * 0.31f);
         panel.GetChild<Control>(2).Position = new Vector2((size.X - 400f) / 2f, size.Y * 0.44f);
         panel.GetNode<Button>("ActionButton").Position = new Vector2((size.X - 240f) / 2f, size.Y * 0.58f);
@@ -248,6 +256,7 @@ public partial class GameBootstrap : Node3D
     {
         if (panel == null) return;
         panel.Size = size;
+        panel.GetChild<Control>(0).Position = new Vector2((size.X - 500f) / 2f, (size.Y - 395f) / 2f);
         panel.GetChild<Control>(1).Position = new Vector2((size.X - 300f) / 2f, size.Y * 0.2f);
         panel.GetChild<Control>(2).Position = new Vector2((size.X - 360f) / 2f, size.Y * 0.35f);
         panel.GetChild<Button>(3).Position = new Vector2((size.X - 180f) / 2f, size.Y * 0.76f);
@@ -297,7 +306,8 @@ public partial class GameBootstrap : Node3D
         {
             var slot = new InventorySlotButton(inventory, true, i, OnInventoryChanged)
             {
-                Position = new Vector2(30 + i * 120, 105)
+                Position = new Vector2(30 + i * 82, 105),
+                Size = new Vector2(68, 68)
             };
             quickbarInventorySlots[i] = slot;
             panel.AddChild(slot);
@@ -314,7 +324,8 @@ public partial class GameBootstrap : Node3D
             int row = i / 5;
             var slot = new InventorySlotButton(inventory, false, i, OnInventoryChanged)
             {
-                Position = new Vector2(30 + column * 120, 218 + row * 68)
+                Position = new Vector2(30 + column * 82, 218 + row * 80),
+                Size = new Vector2(68, 68)
             };
             backpackSlots[i] = slot;
             panel.AddChild(slot);

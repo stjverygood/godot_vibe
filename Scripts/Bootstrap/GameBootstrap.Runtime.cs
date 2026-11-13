@@ -29,7 +29,6 @@ public partial class GameBootstrap : Node3D
     private float attackBufferTimer;
     private float dashTimer;
     private float jumpBufferTimer;
-    private MeshInstance3D attackRangeVisual;
     private MeshInstance3D handItem;
     private MeshInstance3D slashVisual;
     private float slashTimer;
@@ -224,11 +223,10 @@ public partial class GameBootstrap : Node3D
         Vector2I current = new(Mathf.FloorToInt(player.Position.X / WorldManager.ChunkSize), Mathf.FloorToInt(player.Position.Z / WorldManager.ChunkSize));
         if (current != lastChunk) UpdateChunks(false);
         status.Text = $"{activeSave?.Name ?? "洞天"}  ·  {progression.Realm}";
-        vitalsLabel.Text = $"血 {playerHealth:0}/{progression.MaxHealth:0}   气 {playerQi:0}/{progression.MaxQi:0}";
+        vitalsLabel.Text = $"血 {playerHealth:0}/{progression.MaxHealth:0}   气 ∞";
         healthBar.Value = progression.MaxHealth <= 0 ? 0 : playerHealth / progression.MaxHealth * 100f;
         experienceBar.Value = progression.ExperienceToNextLevel <= 0 ? 0 : progression.Experience / progression.ExperienceToNextLevel * 100f;
         attackLabel.Visible = attackFeedback > 0f;
-        attackRangeVisual.Visible = attackFeedback > 0f;
         aimReticle.Visible = aiming;
     }
 
@@ -249,15 +247,18 @@ public partial class GameBootstrap : Node3D
     {
         Vector3 focus = player.GlobalPosition + new Vector3(0f, 1.25f, 0f);
         float desiredDistance = aiming ? Mathf.Min(cameraDistance, 4.3f) : cameraDistance;
-        currentCameraDistance = desiredDistance;
-        Vector3 offset = -AimDirection3D * currentCameraDistance + Vector3.Up * 0.25f;
+        currentCameraDistance = Mathf.Lerp(currentCameraDistance, desiredDistance, Mathf.Clamp(delta * 8f, 0f, 1f));
+        Vector3 cameraRight = new(Mathf.Cos(cameraYaw), 0f, -Mathf.Sin(cameraYaw));
+        Vector3 cameraUp = cameraRight.Cross(AimDirection3D).Normalized();
+        Vector3 aimCompositionOffset = aiming ? cameraRight * 1.15f + cameraUp * 0.75f : Vector3.Zero;
+        Vector3 offset = -AimDirection3D * currentCameraDistance + Vector3.Up * 0.25f + aimCompositionOffset;
         Vector3 desired = focus + offset;
         var query = PhysicsRayQueryParameters3D.Create(focus, desired);
         query.Exclude = new Godot.Collections.Array<Rid> { player.GetRid() };
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
         if (hit.Count > 0) desired = (Vector3)hit["position"] + (focus - desired).Normalized() * 0.25f;
         camera.GlobalPosition = desired;
-        camera.LookAt(focus + AimDirection3D * 30f, Vector3.Up);
+        camera.LookAt(camera.GlobalPosition + AimDirection3D * 30f, Vector3.Up);
     }
 
     private void SetMouseCaptured(bool captured)

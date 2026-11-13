@@ -19,9 +19,6 @@ public partial class GameBootstrap : Node3D
             GameLogger.Info("使用药水，恢复 35 点生命");
             return;
         }
-        float qiCost = actionItemKind == ItemKind.Fireball ? 12f : actionItemKind == ItemKind.IceSpell ? 8f : 0f;
-        if (playerQi < qiCost) { ShowUseFeedback("灵气不足"); return; }
-        playerQi -= qiCost;
         attackCooldown = actionItemKind switch
         {
             ItemKind.WoodenSword => 0.34f,

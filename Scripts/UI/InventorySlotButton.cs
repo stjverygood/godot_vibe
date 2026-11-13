@@ -14,7 +14,7 @@ public partial class InventorySlotButton : Button
         this.isQuickbar = isQuickbar;
         this.slotIndex = slotIndex;
         this.onChanged = onChanged;
-        CustomMinimumSize = new Vector2(100, 58);
+        CustomMinimumSize = new Vector2(68, 68);
         ApplySimpleBorder(this);
         if (isQuickbar)
         {
